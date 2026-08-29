@@ -14,9 +14,8 @@ from homeassistant.components.sensor import (
 from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
     EntityCategory,
+    UnitOfDensity,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -56,7 +55,7 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
         translation_key=POLLUTANT_PM10,
         device_class=SensorDeviceClass.PM10,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         suggested_display_precision=1,
     ),
     AustrianAirQualitySensorDescription(
@@ -65,7 +64,7 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
         translation_key=POLLUTANT_PM25,
         device_class=SensorDeviceClass.PM25,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         suggested_display_precision=1,
     ),
     AustrianAirQualitySensorDescription(
@@ -74,7 +73,7 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
         translation_key=POLLUTANT_NO2,
         device_class=SensorDeviceClass.NITROGEN_DIOXIDE,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         suggested_display_precision=1,
     ),
     AustrianAirQualitySensorDescription(
@@ -83,7 +82,7 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
         translation_key=POLLUTANT_O3,
         device_class=SensorDeviceClass.OZONE,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         suggested_display_precision=1,
     ),
     AustrianAirQualitySensorDescription(
@@ -92,7 +91,7 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
         translation_key=POLLUTANT_SO2,
         device_class=SensorDeviceClass.SULPHUR_DIOXIDE,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         suggested_display_precision=1,
     ),
     AustrianAirQualitySensorDescription(
@@ -101,7 +100,7 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
         translation_key=POLLUTANT_CO,
         device_class=SensorDeviceClass.CO,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MILLIGRAMS_PER_CUBIC_METER,
         suggested_display_precision=2,
     ),
 )
