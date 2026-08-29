@@ -49,8 +49,7 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._stations = await api.async_get_stations()
             except AustrianAirQualityConnectionError:
                 errors["base"] = "cannot_connect"
-            except (AustrianAirQualityApiError, NotImplementedError):
-                # TODO: Remove NotImplementedError once api.py is implemented.
+            except AustrianAirQualityApiError:
                 errors["base"] = "unknown"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error retrieving station list")
@@ -62,7 +61,11 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             name = next(
-                (s.name for s in self._stations if s.station_id == station_id),
+                (
+                    s.station_name
+                    for s in self._stations
+                    if s.station_id == station_id
+                ),
                 station_id,
             )
             return self.async_create_entry(
@@ -71,7 +74,7 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         options = [
-            SelectOptionDict(value=station.station_id, label=station.name)
+            SelectOptionDict(value=station.station_id, label=station.station_name)
             for station in self._stations
         ]
         schema = vol.Schema(

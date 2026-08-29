@@ -171,6 +171,59 @@ class AustrianAirQualityApi:
         """Initialize client with a shared aiohttp session."""
         self._session = session
 
+    async def async_get_stations(self) -> list[AustrianAirQualityStation]:
+        """Fetch the list of currently reporting measurement stations.
+
+        Scans all of Austria for every known pollutant and aggregates the
+        unique stations. Used by the config flow to populate the station
+        picker. The ``measurements`` mapping of the returned stations is
+        left empty; the coordinator fills in live values later.
+        """
+        bbox = (46.2, 49.3, 9.3, 17.3)  # All of Austria
+
+        stations: dict[str, AustrianAirQualityStation] = {}
+        failures = 0
+        mappings = list(_POLLUTANT_MAPPING.values())
+
+        for index, (component, meantype) in enumerate(mappings):
+            if index:
+                # Be gentle with the undocumented public endpoint.
+                await asyncio.sleep(0.3)
+            try:
+                measurements = await self._async_fetch_pollutant(
+                    bbox, component, meantype
+                )
+            except AustrianAirQualityApiError as err:
+                _LOGGER.warning(
+                    "Error retrieving station list for %s/%s: %s",
+                    component,
+                    meantype,
+                    err,
+                )
+                failures += 1
+                continue
+
+            for measurement in measurements.values():
+                stations.setdefault(
+                    measurement.station_id,
+                    AustrianAirQualityStation(
+                        station_id=measurement.station_id,
+                        station_name=measurement.station_name,
+                        location=measurement.location,
+                        owner=measurement.owner,
+                        latitude=measurement.latitude,
+                        longitude=measurement.longitude,
+                        measurements={},
+                    ),
+                )
+
+        if failures == len(mappings):
+            raise AustrianAirQualityConnectionError(
+                "None of the station list requests succeeded"
+            )
+
+        return sorted(stations.values(), key=lambda station: station.station_name)
+
     async def async_fetch_station_data(
         self, station_id: str
     ) -> AustrianAirQualityStation | None:
