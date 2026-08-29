@@ -56,7 +56,7 @@ See `custom_components/austrian_air_quality/` for the source code.
 
 ## License
 
-MIT – see [LICENSE](LICENSE).
+Apache-2.0 – see [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
