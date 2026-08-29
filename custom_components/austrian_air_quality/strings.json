@@ -30,7 +30,7 @@
       },
       "details": {
         "title": "Review measuring station",
-        "description": "**{station}**\n\nAddress: {address}\n\nOperator: {owner}\n\nDistance: {distance}\n\nThe station currently reports these measurements, which will be added as sensors:\n\n| Measurement | Current | Time |\n| --- | --- | --- |\n{measurements}",
+        "description": "**{station}**\n\nAddress: {address}\n\nOperator: {owner}\n\nDistance: {distance}\n\nThe station currently reports these measurements. Each one is added as two sensors, the current value and the daily mean:\n\n| Measurement | Current | Time |\n| --- | --- | --- |\n{measurements}",
         "menu_options": {
           "confirm": "Add this measuring station",
           "station": "Pick a different station",
@@ -53,20 +53,44 @@
       "pm10": {
         "name": "Particulate matter PM10"
       },
+      "pm10_daily": {
+        "name": "Particulate matter PM10 daily mean"
+      },
       "pm25": {
         "name": "Particulate matter PM2.5"
+      },
+      "pm25_daily": {
+        "name": "Particulate matter PM2.5 daily mean"
       },
       "no2": {
         "name": "Nitrogen dioxide"
       },
+      "no2_daily": {
+        "name": "Nitrogen dioxide daily mean"
+      },
+      "no": {
+        "name": "Nitrogen monoxide"
+      },
+      "no_daily": {
+        "name": "Nitrogen monoxide daily mean"
+      },
       "o3": {
         "name": "Ozone"
+      },
+      "o3_daily": {
+        "name": "Ozone daily mean"
       },
       "so2": {
         "name": "Sulphur dioxide"
       },
+      "so2_daily": {
+        "name": "Sulphur dioxide daily mean"
+      },
       "co": {
         "name": "Carbon monoxide"
+      },
+      "co_daily": {
+        "name": "Carbon monoxide daily mean"
       },
       "station_location": {
         "name": "Coordinates"

@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from math import asin, cos, radians, sin, sqrt
@@ -18,13 +19,18 @@ import aiohttp
 
 from .const import (
     AT_BBOX,
+    MEANTYPE_CURRENT,
+    MEANTYPE_DAILY,
+    MEANTYPES,
     POLLUTANT_CO,
+    POLLUTANT_NO,
     POLLUTANT_NO2,
     POLLUTANT_O3,
     POLLUTANT_PM10,
     POLLUTANT_PM25,
     POLLUTANT_SO2,
     STATION_BBOX_PADDING,
+    measurement_key,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -146,6 +152,7 @@ class AustrianAirQualityMeasurement:
     value_class: str | None
     latitude: float | None
     longitude: float | None
+    altitude: float | None
 
 
 @dataclass(slots=True)
@@ -158,7 +165,9 @@ class AustrianAirQualityStation:
     owner: str | None
     latitude: float | None
     longitude: float | None
-    # Key: pollutant key (pm10, pm25, no2, o3, so2, co)
+    altitude: float | None = None
+    # Key: measurement key, i.e. pollutant plus averaging period
+    # (pm10, pm10_daily, no2, no2_daily, ...) as built by measurement_key().
     # Value: AustrianAirQualityMeasurement
     measurements: dict[str, AustrianAirQualityMeasurement] = field(
         default_factory=dict
@@ -166,8 +175,16 @@ class AustrianAirQualityStation:
 
     @property
     def pollutants(self) -> list[str]:
-        """Pollutant keys this station currently reports, in a stable order."""
-        return [key for key in _POLLUTANT_MAPPING if key in self.measurements]
+        """Pollutant keys this station currently reports, in a stable order.
+
+        Based on the freshest averaging period, which is what the config flow
+        shows while the station is being picked.
+        """
+        return [
+            pollutant
+            for pollutant in _COMPONENTS
+            if measurement_key(pollutant, MEANTYPE_CURRENT) in self.measurements
+        ]
 
 
 def _to_float(raw: object) -> float | None:
@@ -204,20 +221,39 @@ def _parse_measurement(entry: dict) -> AustrianAirQualityMeasurement | None:
         # despite the EPSG:31287 label.
         latitude=_to_float(coords.get("Y")),
         longitude=_to_float(coords.get("X")),
+        altitude=_to_float(coords.get("Z")),
         value_class=entry.get("valueclass"),
     )
 
 
-# Mapping of integration keys to API components and averaging periods.
-# For simplified API: only HMW (half-hour average) or most common variant.
-_POLLUTANT_MAPPING = {
-    POLLUTANT_PM10: ("PM10_K", "HMW"),
-    POLLUTANT_PM25: ("PM2_5_K", "HMW"),
-    POLLUTANT_NO2: ("NO2", "HMW"),
-    POLLUTANT_O3: ("O3", "HMW"),
-    POLLUTANT_SO2: ("SO2", "HMW"),
-    POLLUTANT_CO: ("CO", "HMW"),
+# API component name of every pollutant. "_K" marks the continuously measuring
+# instruments, which are the only ones the map interface serves.
+_COMPONENTS: dict[str, str] = {
+    POLLUTANT_PM10: "PM10_K",
+    POLLUTANT_PM25: "PM2_5_K",
+    POLLUTANT_NO2: "NO2",
+    POLLUTANT_NO: "NO",
+    POLLUTANT_O3: "O3",
+    POLLUTANT_SO2: "SO2",
+    POLLUTANT_CO: "CO",
 }
+
+# API averaging period of every meantype key. The interface also knows MW1,
+# MW3, MW8 and MW24 for all of these components; only the two below are
+# fetched, to keep the number of requests per update reasonable.
+_API_MEANTYPES: dict[str, str] = {
+    MEANTYPE_CURRENT: "HMW",
+    MEANTYPE_DAILY: "TMW",
+}
+
+
+def _queries(meantypes: Sequence[str]) -> list[tuple[str, str, str]]:
+    """Query plan as (measurement key, API component, API averaging period)."""
+    return [
+        (measurement_key(pollutant, meantype), component, _API_MEANTYPES[meantype])
+        for pollutant, component in _COMPONENTS.items()
+        for meantype in meantypes
+    ]
 
 
 class AustrianAirQualityApi:
@@ -236,8 +272,15 @@ class AustrianAirQualityApi:
         returned station already carries the measurements it currently reports.
         Defaults to all of Austria. Used by the config flow to populate the
         station picker and to show what a station actually measures.
+
+        Only the freshest averaging period is requested here: the picker just
+        needs to know what a station measures, and the search may cover all of
+        Austria, where every additional averaging period means another large
+        response.
         """
-        stations = await self._async_collect(bbox or AT_BBOX)
+        stations = await self._async_collect(
+            bbox or AT_BBOX, meantypes=(MEANTYPE_CURRENT,)
+        )
         return sorted(stations.values(), key=lambda station: station.station_name)
 
     async def async_fetch_station_data(
@@ -247,6 +290,9 @@ class AustrianAirQualityApi:
         longitude: float | None = None,
     ) -> AustrianAirQualityStation | None:
         """Fetch all measurements for a single measurement station.
+
+        Covers every pollutant in every averaging period, so the station comes
+        back with both its current values and its daily means.
 
         When the station coordinates are known, a small bounding box around them
         keeps the responses small. Otherwise all of Austria has to be scanned
@@ -269,28 +315,28 @@ class AustrianAirQualityApi:
         self,
         bbox: tuple[float, float, float, float],
         station_id: str | None = None,
+        meantypes: Sequence[str] = MEANTYPES,
     ) -> dict[str, AustrianAirQualityStation]:
         """Query every pollutant for a bounding box and group by station.
 
-        Individual pollutant failures are tolerated; only a complete failure of
-        all requests is raised, so one flaky parameter does not take the whole
+        Individual query failures are tolerated; only a complete failure of all
+        requests is raised, so one flaky parameter does not take the whole
         station down.
         """
         stations: dict[str, AustrianAirQualityStation] = {}
+        queries = _queries(meantypes)
         failures = 0
 
-        for index, (pollutant_key, (component, meantype)) in enumerate(
-            _POLLUTANT_MAPPING.items()
-        ):
+        for index, (key, component, api_meantype) in enumerate(queries):
             if index:
                 await asyncio.sleep(REQUEST_DELAY)
             try:
                 measurements = await self._async_fetch_pollutant(
-                    bbox, component, meantype
+                    bbox, component, api_meantype
                 )
             except AustrianAirQualityApiError as err:
                 _LOGGER.warning(
-                    "Error retrieving %s/%s: %s", component, meantype, err
+                    "Error retrieving %s/%s: %s", component, api_meantype, err
                 )
                 failures += 1
                 continue
@@ -307,11 +353,12 @@ class AustrianAirQualityApi:
                         owner=measurement.owner,
                         latitude=measurement.latitude,
                         longitude=measurement.longitude,
+                        altitude=measurement.altitude,
                     )
                     stations[measurement.station_id] = station
-                station.measurements[pollutant_key] = measurement
+                station.measurements[key] = measurement
 
-        if failures == len(_POLLUTANT_MAPPING):
+        if failures == len(queries):
             raise AustrianAirQualityConnectionError(
                 "None of the air quality requests succeeded"
             )

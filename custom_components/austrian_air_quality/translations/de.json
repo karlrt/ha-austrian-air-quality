@@ -30,7 +30,7 @@
       },
       "details": {
         "title": "Messstation prüfen",
-        "description": "**{station}**\n\nAdresse: {address}\n\nBetreiber: {owner}\n\nEntfernung: {distance}\n\nDiese Messwerte liefert die Station derzeit und wird sie als Sensoren anlegen:\n\n| Messwert | Aktuell | Zeitpunkt |\n| --- | --- | --- |\n{measurements}",
+        "description": "**{station}**\n\nAdresse: {address}\n\nBetreiber: {owner}\n\nEntfernung: {distance}\n\nDiese Messwerte liefert die Station derzeit. Jeder davon wird als zwei Sensoren angelegt, aktueller Wert und Tagesmittel:\n\n| Messwert | Aktuell | Zeitpunkt |\n| --- | --- | --- |\n{measurements}",
         "menu_options": {
           "confirm": "Diese Messstation hinzufügen",
           "station": "Andere Messstation wählen",
@@ -53,20 +53,44 @@
       "pm10": {
         "name": "Feinstaub PM10"
       },
+      "pm10_daily": {
+        "name": "Feinstaub PM10 Tagesmittel"
+      },
       "pm25": {
         "name": "Feinstaub PM2.5"
+      },
+      "pm25_daily": {
+        "name": "Feinstaub PM2.5 Tagesmittel"
       },
       "no2": {
         "name": "Stickstoffdioxid"
       },
+      "no2_daily": {
+        "name": "Stickstoffdioxid Tagesmittel"
+      },
+      "no": {
+        "name": "Stickstoffmonoxid"
+      },
+      "no_daily": {
+        "name": "Stickstoffmonoxid Tagesmittel"
+      },
       "o3": {
         "name": "Ozon"
+      },
+      "o3_daily": {
+        "name": "Ozon Tagesmittel"
       },
       "so2": {
         "name": "Schwefeldioxid"
       },
+      "so2_daily": {
+        "name": "Schwefeldioxid Tagesmittel"
+      },
       "co": {
         "name": "Kohlenmonoxid"
+      },
+      "co_daily": {
+        "name": "Kohlenmonoxid Tagesmittel"
       },
       "station_location": {
         "name": "Koordinaten"

@@ -22,23 +22,33 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .api import AustrianAirQualityMeasurement
 from .const import (
+    ATTR_ALTITUDE,
     ATTR_LOCATION,
     ATTR_MEASURED_AT,
     ATTR_OWNER,
     ATTR_STATION_ID,
+    ATTR_VALUE_CLASS,
     ATTRIBUTION,
     CONF_STATION_NAME,
     DOMAIN,
     MANUFACTURER,
+    MEANTYPES,
     POLLUTANT_CO,
+    POLLUTANT_NO,
     POLLUTANT_NO2,
     POLLUTANT_O3,
     POLLUTANT_PM10,
     POLLUTANT_PM25,
     POLLUTANT_SO2,
+    measurement_key,
 )
 from .coordinator import AustrianAirQualityConfigEntry, AustrianAirQualityCoordinator
+
+# Values without any threshold class carry this placeholder instead of leaving
+# the field out, so it must not become an attribute.
+NO_VALUE_CLASS = "NOCLASS"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -46,63 +56,72 @@ class AustrianAirQualitySensorDescription(SensorEntityDescription):
     """Description of a pollutant sensor."""
 
     pollutant: str
+    meantype: str
 
 
-SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = (
-    AustrianAirQualitySensorDescription(
-        key=POLLUTANT_PM10,
-        pollutant=POLLUTANT_PM10,
-        translation_key=POLLUTANT_PM10,
+@dataclass(frozen=True, slots=True)
+class PollutantTraits:
+    """Everything that depends on the pollutant, not on the averaging period."""
+
+    device_class: SensorDeviceClass
+    unit: str
+    precision: int
+
+
+POLLUTANT_TRAITS: dict[str, PollutantTraits] = {
+    POLLUTANT_PM10: PollutantTraits(
         device_class=SensorDeviceClass.PM10,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
-        suggested_display_precision=1,
+        unit=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+        precision=1,
     ),
-    AustrianAirQualitySensorDescription(
-        key=POLLUTANT_PM25,
-        pollutant=POLLUTANT_PM25,
-        translation_key=POLLUTANT_PM25,
+    POLLUTANT_PM25: PollutantTraits(
         device_class=SensorDeviceClass.PM25,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
-        suggested_display_precision=1,
+        unit=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+        precision=1,
     ),
-    AustrianAirQualitySensorDescription(
-        key=POLLUTANT_NO2,
-        pollutant=POLLUTANT_NO2,
-        translation_key=POLLUTANT_NO2,
+    POLLUTANT_NO2: PollutantTraits(
         device_class=SensorDeviceClass.NITROGEN_DIOXIDE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
-        suggested_display_precision=1,
+        unit=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+        precision=1,
     ),
-    AustrianAirQualitySensorDescription(
-        key=POLLUTANT_O3,
-        pollutant=POLLUTANT_O3,
-        translation_key=POLLUTANT_O3,
+    POLLUTANT_NO: PollutantTraits(
+        device_class=SensorDeviceClass.NITROGEN_MONOXIDE,
+        unit=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+        precision=1,
+    ),
+    POLLUTANT_O3: PollutantTraits(
         device_class=SensorDeviceClass.OZONE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
-        suggested_display_precision=1,
+        unit=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+        precision=1,
     ),
-    AustrianAirQualitySensorDescription(
-        key=POLLUTANT_SO2,
-        pollutant=POLLUTANT_SO2,
-        translation_key=POLLUTANT_SO2,
+    POLLUTANT_SO2: PollutantTraits(
         device_class=SensorDeviceClass.SULPHUR_DIOXIDE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
-        suggested_display_precision=1,
+        unit=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+        precision=1,
     ),
-    AustrianAirQualitySensorDescription(
-        key=POLLUTANT_CO,
-        pollutant=POLLUTANT_CO,
-        translation_key=POLLUTANT_CO,
+    POLLUTANT_CO: PollutantTraits(
         device_class=SensorDeviceClass.CO,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfDensity.MILLIGRAMS_PER_CUBIC_METER,
-        suggested_display_precision=2,
+        unit=UnitOfDensity.MILLIGRAMS_PER_CUBIC_METER,
+        precision=2,
     ),
+}
+
+# One sensor per pollutant and averaging period. The measurement key doubles as
+# the entity key and the translation key, so another averaging period only needs
+# an entry in MEANTYPES plus the matching names in strings.json.
+SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = tuple(
+    AustrianAirQualitySensorDescription(
+        key=measurement_key(pollutant, meantype),
+        translation_key=measurement_key(pollutant, meantype),
+        pollutant=pollutant,
+        meantype=meantype,
+        device_class=traits.device_class,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=traits.unit,
+        suggested_display_precision=traits.precision,
+    )
+    for pollutant, traits in POLLUTANT_TRAITS.items()
+    for meantype in MEANTYPES
 )
 
 
@@ -118,7 +137,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         AustrianAirQualitySensor(coordinator, entry, description)
         for description in SENSOR_DESCRIPTIONS
-        if description.pollutant in available
+        if description.key in available
     ]
     if coordinator.station_coordinates != (None, None):
         entities.append(AustrianAirQualityLocationSensor(coordinator, entry))
@@ -127,7 +146,7 @@ async def async_setup_entry(
 
 
 class AustrianAirQualityEntity(CoordinatorEntity[AustrianAirQualityCoordinator]):
-    """Shared device registration and station metadata of a station's entities."""
+    """Shared device registration and station metadata of the station entities."""
 
     _attr_has_entity_name = True
     _attr_attribution = ATTRIBUTION
@@ -137,7 +156,7 @@ class AustrianAirQualityEntity(CoordinatorEntity[AustrianAirQualityCoordinator])
         coordinator: AustrianAirQualityCoordinator,
         entry: AustrianAirQualityConfigEntry,
     ) -> None:
-        """Register the entity with the station's device."""
+        """Register the entity with the station device."""
         super().__init__(coordinator)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.station_id)},
@@ -162,11 +181,13 @@ class AustrianAirQualityEntity(CoordinatorEntity[AustrianAirQualityCoordinator])
             attributes[ATTR_LOCATION] = station.location
         if station.owner:
             attributes[ATTR_OWNER] = station.owner
+        if station.altitude is not None:
+            attributes[ATTR_ALTITUDE] = station.altitude
         return attributes
 
 
 class AustrianAirQualitySensor(AustrianAirQualityEntity, SensorEntity):
-    """A pollutant measurement from a station."""
+    """A pollutant measurement of a station, for one averaging period."""
 
     entity_description: AustrianAirQualitySensorDescription
 
@@ -184,31 +205,33 @@ class AustrianAirQualitySensor(AustrianAirQualityEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         """Return current measurement value."""
-        if self.coordinator.data is None:
-            return None
-        measurement = self.coordinator.data.measurements.get(self.entity_description.pollutant)
+        measurement = self._measurement
         return measurement.value if measurement else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Station metadata plus the timestamp of this measurement."""
+        """Station metadata plus timestamp and threshold class of this value."""
         attributes = super().extra_state_attributes
-        station = self.coordinator.data
-        if station is None:
+        measurement = self._measurement
+        if measurement is None:
             return attributes
-        measurement = station.measurements.get(self.entity_description.pollutant)
-        if measurement is not None and measurement.measured_at is not None:
+        if measurement.measured_at is not None:
             attributes[ATTR_MEASURED_AT] = measurement.measured_at.isoformat()
+        if measurement.value_class not in (None, NO_VALUE_CLASS):
+            attributes[ATTR_VALUE_CLASS] = measurement.value_class
         return attributes
 
     @property
     def available(self) -> bool:
         """Whether the measurement is currently available."""
-        return (
-            super().available
-            and self.coordinator.data is not None
-            and self.entity_description.pollutant in self.coordinator.data.measurements
-        )
+        return super().available and self._measurement is not None
+
+    @property
+    def _measurement(self) -> AustrianAirQualityMeasurement | None:
+        """The measurement backing this sensor, if the station reports it."""
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.measurements.get(self.entity_description.key)
 
 
 class AustrianAirQualityLocationSensor(AustrianAirQualityEntity, SensorEntity):

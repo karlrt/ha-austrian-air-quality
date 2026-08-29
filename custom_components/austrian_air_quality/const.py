@@ -21,6 +21,8 @@ ATTR_STATION_ID: Final = "station_id"
 ATTR_LOCATION: Final = "location"
 ATTR_OWNER: Final = "owner"
 ATTR_MEASURED_AT: Final = "measured_at"
+ATTR_ALTITUDE: Final = "altitude"
+ATTR_VALUE_CLASS: Final = "value_class"
 
 DEFAULT_SCAN_INTERVAL: Final = timedelta(minutes=30)
 
@@ -42,6 +44,7 @@ STATION_BBOX_PADDING: Final = 0.03
 POLLUTANT_PM10: Final = "pm10"
 POLLUTANT_PM25: Final = "pm25"
 POLLUTANT_NO2: Final = "no2"
+POLLUTANT_NO: Final = "no"
 POLLUTANT_O3: Final = "o3"
 POLLUTANT_SO2: Final = "so2"
 POLLUTANT_CO: Final = "co"
@@ -50,10 +53,31 @@ POLLUTANTS: Final[tuple[str, ...]] = (
     POLLUTANT_PM10,
     POLLUTANT_PM25,
     POLLUTANT_NO2,
+    POLLUTANT_NO,
     POLLUTANT_O3,
     POLLUTANT_SO2,
     POLLUTANT_CO,
 )
+
+# Averaging periods every pollutant is fetched for. The half-hour mean is the
+# freshest value the source publishes and therefore carries the plain pollutant
+# key; the daily mean is what the Austrian limit values refer to.
+MEANTYPE_CURRENT: Final = "current"
+MEANTYPE_DAILY: Final = "daily"
+
+MEANTYPES: Final[tuple[str, ...]] = (MEANTYPE_CURRENT, MEANTYPE_DAILY)
+
+
+def measurement_key(pollutant: str, meantype: str) -> str:
+    """Key of one pollutant/averaging-period combination.
+
+    The half-hour mean keeps the bare pollutant key so the entities that
+    existed before daily means were added keep their unique IDs and history.
+    """
+    if meantype == MEANTYPE_CURRENT:
+        return pollutant
+    return f"{pollutant}_{meantype}"
+
 
 # Short chemical labels for the config flow. Deliberately language neutral so
 # they can be used inside dynamically built select options and markdown, where
@@ -61,8 +85,9 @@ POLLUTANTS: Final[tuple[str, ...]] = (
 POLLUTANT_LABELS: Final[dict[str, str]] = {
     POLLUTANT_PM10: "PM10",
     POLLUTANT_PM25: "PM2.5",
-    POLLUTANT_NO2: "NO\u2082",
-    POLLUTANT_O3: "O\u2083",
-    POLLUTANT_SO2: "SO\u2082",
+    POLLUTANT_NO2: "NO₂",
+    POLLUTANT_NO: "NO",
+    POLLUTANT_O3: "O₃",
+    POLLUTANT_SO2: "SO₂",
     POLLUTANT_CO: "CO",
 }
