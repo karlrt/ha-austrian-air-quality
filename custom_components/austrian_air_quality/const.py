@@ -1,4 +1,4 @@
-"""Konstanten für die Integration Luftqualität Österreich."""
+"""Constants for the Austrian Air Quality integration."""
 
 from __future__ import annotations
 
@@ -7,16 +7,16 @@ from typing import Final
 
 DOMAIN: Final = "austrian_air_quality"
 
-MANUFACTURER: Final = "Umweltbundesamt"
-ATTRIBUTION: Final = "Daten: Umweltbundesamt GmbH (inoffizielle Integration)"
+MANUFACTURER: Final = "Austrian Environment Agency"
+ATTRIBUTION: Final = "Data: Federal Environment Agency Austria (unofficial integration)"
 
 CONF_STATION_ID: Final = "station_id"
 CONF_STATION_NAME: Final = "station_name"
 
 DEFAULT_SCAN_INTERVAL: Final = timedelta(minutes=30)
 
-# Schlüssel der Messgrößen. Werden sowohl vom API-Client als auch von den
-# Sensor-Beschreibungen in sensor.py verwendet.
+# Keys for measurement types. Used by both the API client and the
+# sensor descriptions in sensor.py.
 POLLUTANT_PM10: Final = "pm10"
 POLLUTANT_PM25: Final = "pm25"
 POLLUTANT_NO2: Final = "no2"

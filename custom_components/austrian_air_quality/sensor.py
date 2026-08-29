@@ -1,4 +1,4 @@
-"""Sensor-Plattform für Luftqualität Österreich."""
+"""Sensor platform for Austrian Air Quality."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from .coordinator import AustrianAirQualityConfigEntry, AustrianAirQualityCoordi
 
 @dataclass(frozen=True, kw_only=True)
 class AustrianAirQualitySensorDescription(SensorEntityDescription):
-    """Beschreibung eines Schadstoff-Sensors."""
+    """Description of a pollutant sensor."""
 
     pollutant: str
 
@@ -104,7 +104,7 @@ async def async_setup_entry(
     entry: AustrianAirQualityConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Sensoren für einen Konfigurationseintrag anlegen."""
+    """Set up sensors for a configuration entry."""
     coordinator = entry.runtime_data
     available = coordinator.data.measurements if coordinator.data else {}
 
@@ -116,7 +116,7 @@ async def async_setup_entry(
 
 
 class AustrianAirQualitySensor(CoordinatorEntity[AustrianAirQualityCoordinator], SensorEntity):
-    """Ein Schadstoff-Messwert einer Station."""
+    """A pollutant measurement from a station."""
 
     _attr_has_entity_name = True
     _attr_attribution = ATTRIBUTION
@@ -128,7 +128,7 @@ class AustrianAirQualitySensor(CoordinatorEntity[AustrianAirQualityCoordinator],
         entry: AustrianAirQualityConfigEntry,
         description: AustrianAirQualitySensorDescription,
     ) -> None:
-        """Sensor initialisieren."""
+        """Initialize sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.station_id}_{description.key}"
@@ -136,12 +136,12 @@ class AustrianAirQualitySensor(CoordinatorEntity[AustrianAirQualityCoordinator],
             identifiers={(DOMAIN, coordinator.station_id)},
             name=entry.data.get(CONF_STATION_NAME, coordinator.station_id),
             manufacturer=MANUFACTURER,
-            model="Luftqualitäts-Messstelle",
+            model="Air quality monitoring station",
         )
 
     @property
     def native_value(self) -> float | None:
-        """Aktuellen Messwert zurückgeben."""
+        """Return current measurement value."""
         if self.coordinator.data is None:
             return None
         measurement = self.coordinator.data.measurements.get(self.entity_description.pollutant)
@@ -149,7 +149,7 @@ class AustrianAirQualitySensor(CoordinatorEntity[AustrianAirQualityCoordinator],
 
     @property
     def available(self) -> bool:
-        """Ob der Messwert derzeit vorliegt."""
+        """Whether the measurement is currently available."""
         return (
             super().available
             and self.coordinator.data is not None

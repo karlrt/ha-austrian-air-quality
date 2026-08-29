@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator für Luftqualität Österreich."""
+"""Data update coordinator for Austrian Air Quality."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ type AustrianAirQualityConfigEntry = ConfigEntry["AustrianAirQualityCoordinator"
 
 
 class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStation | None]):
-    """Holt die Messwerte einer Station periodisch ab."""
+    """Fetches measurements for a station periodically."""
 
     config_entry: AustrianAirQualityConfigEntry
 
@@ -34,7 +34,7 @@ class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStat
         api: AustrianAirQualityApi,
         station_id: str,
     ) -> None:
-        """Coordinator initialisieren."""
+        """Initialize coordinator."""
         super().__init__(
             hass,
             _LOGGER,
@@ -46,10 +46,10 @@ class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStat
         self.station_id = station_id
 
     async def _async_update_data(self) -> AustrianAirQualityStation | None:
-        """Aktuelle Messwerte abrufen."""
+        """Fetch current measurements."""
         try:
             return await self.api.async_fetch_station_data(self.station_id)
         except AustrianAirQualityAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except AustrianAirQualityApiError as err:
-            raise UpdateFailed(f"Abruf der Luftqualitätsdaten fehlgeschlagen: {err}") from err
+            raise UpdateFailed(f"Failed to retrieve air quality data: {err}") from err

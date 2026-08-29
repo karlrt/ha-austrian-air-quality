@@ -1,8 +1,7 @@
-"""Client für die JSON-Schnittstelle der Luftgütekarte des Umweltbundesamts.
+"""Client for the JSON interface of the Austrian Environment Agency's air quality map.
 
-Hinweis: Es handelt sich um eine nicht dokumentierte Schnittstelle, die von der
-öffentlichen Kartenanwendung unter luft.umweltbundesamt.at verwendet wird. Sie
-kann sich ohne Ankündigung ändern.
+Note: This is an undocumented interface used by the public map application
+at luft.umweltbundesamt.at. It may change without notice.
 """
 
 from __future__ import annotations
@@ -35,30 +34,30 @@ _TIME_RE = re.compile(
 
 
 class AustrianAirQualityApiError(Exception):
-    """Fehler beim Abruf der Luftqualitätsdaten."""
+    """Error retrieving air quality data."""
 
 
 class AustrianAirQualityConnectionError(AustrianAirQualityApiError):
-    """Netzwerkfehler oder unerwartete Antwort."""
+    """Network error or unexpected response."""
 
 
 class AustrianAirQualityAuthError(AustrianAirQualityApiError):
-    """Authentifizierung fehlgeschlagen bzw. Zugriff verweigert."""
+    """Authentication failed or access denied."""
 
 
 def parse_measurement_time(raw: str | None) -> datetime | None:
-    """Zeitstempel der Schnittstelle robust und locale-unabhängig parsen.
+    """Robustly parse the interface timestamp in a locale-independent manner.
 
-    Beispielwert: "28 Aug 2026 13:30:00 GMT+0100".
+    Example value: "28 Aug 2026 13:30:00 GMT+0100".
 
-    Achtung: Die Quelle gibt Zeiten laut Dokumentation der Länder in MEZ an,
-    auch während der Sommerzeit. Der Offset wird übernommen wie geliefert.
+    Warning: The source provides times in CET according to country documentation,
+    also during daylight saving time. The offset is used as provided.
     """
     if not raw:
         return None
     match = _TIME_RE.match(raw.strip())
     if not match:
-        _LOGGER.debug("Unbekanntes Zeitformat: %s", raw)
+        _LOGGER.debug("Unknown time format: %s", raw)
         return None
     day, month, year, hour, minute, second, offset = match.groups()
     if month not in _MONTHS:
@@ -85,7 +84,7 @@ def parse_measurement_time(raw: str | None) -> datetime | None:
 
 @dataclass(slots=True)
 class AustrianAirQualityMeasurement:
-    """Ein Messwert einer Station."""
+    """A measurement from a station."""
 
     station_id: str
     station_name: str
@@ -102,7 +101,7 @@ class AustrianAirQualityMeasurement:
 
 @dataclass(slots=True)
 class AustrianAirQualityStation:
-    """Eine Messstation mit allen verfügbaren Messgrößen."""
+    """A measurement station with all available measurement types."""
 
     station_id: str
     station_name: str
@@ -110,13 +109,13 @@ class AustrianAirQualityStation:
     owner: str | None
     latitude: float | None
     longitude: float | None
-    # Schlüssel: pollutant_key (pm10, pm25, no2, o3, so2, co)
-    # Wert: AustrianAirQualityMeasurement
+    # Key: pollutant_key (pm10, pm25, no2, o3, so2, co)
+    # Value: AustrianAirQualityMeasurement
     measurements: dict[str, AustrianAirQualityMeasurement]
 
 
 def _to_float(raw: object) -> float | None:
-    """Konvertiere einen Wert (mit Komma oder Punkt) zu float."""
+    """Convert a value (with comma or decimal point) to float."""
     if raw is None:
         return None
     try:
@@ -126,7 +125,7 @@ def _to_float(raw: object) -> float | None:
 
 
 def _parse_measurement(entry: dict) -> AustrianAirQualityMeasurement | None:
-    """Parse einen einzelnen Messwert aus der API-Antwort."""
+    """Parse a single measurement from the API response."""
     station_id = entry.get("stationid")
     value = _to_float(entry.get("value"))
     if not station_id or value is None:
@@ -145,16 +144,16 @@ def _parse_measurement(entry: dict) -> AustrianAirQualityMeasurement | None:
         unit=str(entry.get("unit") or ""),
         measured_at=parse_measurement_time(raw_time),
         measured_at_raw=raw_time,
-        # Die Schnittstelle liefert unter X die geographische Länge und
-        # unter Y die Breite, trotz des Labels EPSG:31287.
+        # The interface provides longitude under X and latitude under Y,
+        # despite the EPSG:31287 label.
         latitude=_to_float(coords.get("Y")),
         longitude=_to_float(coords.get("X")),
         value_class=entry.get("valueclass"),
     )
 
 
-# Mapping von Integrations-Schlüsseln zu API-Komponenten und Mittelungszeiträumen.
-# Für vereinfachte API: nur HMW (Halbstunden-Mittelwert) oder häufigste Variante.
+# Mapping of integration keys to API components and averaging periods.
+# For simplified API: only HMW (half-hour average) or most common variant.
 _POLLUTANT_MAPPING = {
     "pm10": ("PM10_K", "HMW"),
     "pm25": ("PM2_5_K", "HMW"),
@@ -166,24 +165,24 @@ _POLLUTANT_MAPPING = {
 
 
 class AustrianAirQualityApi:
-    """Kapselt die HTTP-Aufrufe gegen die Kartenanwendung."""
+    """Encapsulates HTTP calls to the map application."""
 
     def __init__(self, session: aiohttp.ClientSession) -> None:
-        """Client mit einer geteilten aiohttp-Session initialisieren."""
+        """Initialize client with a shared aiohttp session."""
         self._session = session
 
     async def async_fetch_station_data(
         self, station_id: str
     ) -> AustrianAirQualityStation | None:
-        """Hole alle Messwerte für eine einzelne Messstation.
+        """Fetch all measurements for a single measurement station.
 
-        Ruft die API für jeden Schadstoff einzeln auf und aggregiert die Ergebnisse
-        zu einer Station.
+        Calls the API for each pollutant individually and aggregates
+        results into one station.
         """
-        # Eine kleine Bounding-Box um die Station abfragen.
-        # Wir wissen die Koordinaten nicht im Voraus, also verwenden wir eine
-        # breite Box und filtern dann nach station_id.
-        bbox = (46.2, 49.3, 9.3, 17.3)  # Ganz Österreich
+        # Query a small bounding box around the station.
+        # We don't know the coordinates in advance, so we use a wide box
+        # and filter by station_id.
+        bbox = (46.2, 49.3, 9.3, 17.3)  # All of Austria
 
         all_measurements: dict[str, AustrianAirQualityMeasurement] = {}
         station_info = None
@@ -228,10 +227,10 @@ class AustrianAirQualityApi:
         component: str,
         meantype: str,
     ) -> dict[str, AustrianAirQualityMeasurement]:
-        """Hole alle Stationen einer Bounding-Box für einen Parameter.
+        """Fetch all stations in a bounding box for a parameter.
 
-        bbox ist (lat_start, lat_end, lng_start, lng_end).
-        Rückgabe: station_id -> AustrianAirQualityMeasurement.
+        bbox is (lat_start, lat_end, lng_start, lng_end).
+        Returns: station_id -> AustrianAirQualityMeasurement.
         """
         lat_start, lat_end, lng_start, lng_end = bbox
         params = {
@@ -256,22 +255,22 @@ class AustrianAirQualityApi:
                     raise AustrianAirQualityConnectionError(
                         f"HTTP {response.status} für {component}/{meantype}"
                     )
-                # Die Schnittstelle antwortet mit text/plain statt JSON.
+                # The interface responds with text/plain instead of JSON.
                 text = await response.text()
         except asyncio.TimeoutError as err:
             raise AustrianAirQualityConnectionError(
-                f"Zeitüberschreitung bei {component}/{meantype}"
+                f"Timeout for {component}/{meantype}"
             ) from err
         except aiohttp.ClientError as err:
             raise AustrianAirQualityConnectionError(
-                f"Verbindungsfehler bei {component}/{meantype}: {err}"
+                f"Connection error for {component}/{meantype}: {err}"
             ) from err
 
         try:
             payload = json.loads(text)
         except ValueError as err:
             raise AustrianAirQualityConnectionError(
-                f"Antwort für {component}/{meantype} ist kein gültiges JSON"
+                f"Response for {component}/{meantype} is not valid JSON"
             ) from err
 
         stations = payload.get("stations")

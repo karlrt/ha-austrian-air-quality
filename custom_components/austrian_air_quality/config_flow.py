@@ -1,4 +1,4 @@
-"""Config Flow für Luftqualität Österreich."""
+"""Config flow for Austrian Air Quality."""
 
 from __future__ import annotations
 
@@ -28,18 +28,18 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Einrichtung über die Benutzeroberfläche."""
+    """User interface setup."""
 
     VERSION = 1
 
     def __init__(self) -> None:
-        """Flow initialisieren."""
+        """Initialize flow."""
         self._stations: list[AustrianAirQualityStation] = []
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Station auswählen."""
+        """Select station."""
         errors: dict[str, str] = {}
 
         if not self._stations:
@@ -50,10 +50,10 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
             except AustrianAirQualityConnectionError:
                 errors["base"] = "cannot_connect"
             except (AustrianAirQualityApiError, NotImplementedError):
-                # TODO: NotImplementedError entfernen, sobald api.py implementiert ist.
+                # TODO: Remove NotImplementedError once api.py is implemented.
                 errors["base"] = "unknown"
             except Exception:  # noqa: BLE001
-                _LOGGER.exception("Unerwarteter Fehler beim Abruf der Stationsliste")
+                _LOGGER.exception("Unexpected error retrieving station list")
                 errors["base"] = "unknown"
 
         if user_input is not None and not errors:

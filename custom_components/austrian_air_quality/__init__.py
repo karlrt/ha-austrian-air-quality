@@ -1,4 +1,4 @@
-"""Die Integration Luftqualität Österreich."""
+"""Austrian Air Quality integration."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> bool:
-    """Einen Konfigurationseintrag einrichten."""
+    """Set up a configuration entry."""
     session = async_get_clientsession(hass)
     api = AustrianAirQualityApi(session)
 
@@ -30,10 +30,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfig
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> bool:
-    """Einen Konfigurationseintrag entladen."""
+    """Unload a configuration entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> None:
-    """Einen Konfigurationseintrag nach Optionsänderung neu laden."""
+    """Reload a configuration entry after option changes."""
     await hass.config_entries.async_reload(entry.entry_id)

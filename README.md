@@ -1,62 +1,62 @@
-# Luftqualität Österreich
+# Austrian Air Quality
 
 [![hacs][hacs-badge]][hacs]
 
-Home-Assistant-Integration für Luftqualitätsmessdaten in Österreich (Datenquelle: Umweltbundesamt).
+Home Assistant integration for air quality measurements in Austria (data source: Federal Environment Agency Austria).
 
-> **Inoffizielles Projekt.** Diese Integration wird unabhängig entwickelt und steht in keiner
-> Verbindung zum Umweltbundesamt GmbH. Es besteht keine Gewähr für Verfügbarkeit, Aktualität
-> oder Richtigkeit der Daten. Für rechtsverbindliche Auskünfte gilt ausschließlich die
-> offizielle Veröffentlichung des Umweltbundesamts.
+> **Unofficial project.** This integration is developed independently and is not affiliated with
+> the Federal Environment Agency Austria (Umweltbundesamt). There is no warranty for availability,
+> timeliness, or accuracy of the data. For legally binding information, refer exclusively to the
+> official publication of the Federal Environment Agency Austria.
 
 ## Status
 
-**Frühe Entwicklung – noch nicht lauffähig.** Das Repository enthält derzeit das Gerüst der
-Integration. Der Datenzugriff in `api.py` ist bewusst als Platzhalter angelegt: Endpunkt,
-Antwortformat, Aktualisierungsintervall und Nutzungsbedingungen der Datenquelle sind noch
-nicht verifiziert und müssen vor der ersten Implementierung geklärt werden.
+**Early development – not yet functional.** The repository currently contains the skeleton of the
+integration. Data access in `api.py` is intentionally implemented as a placeholder: endpoint,
+response format, update interval, and data source terms of use have not yet been verified and
+must be clarified before the first implementation.
 
-## Messgrößen (geplant)
+## Measurements (planned)
 
-| Schadstoff | Entity-Suffix | Einheit |
+| Pollutant | Entity Suffix | Unit |
 |---|---|---|
-| Feinstaub PM10 | `_pm10` | µg/m³ |
-| Feinstaub PM2.5 | `_pm25` | µg/m³ |
-| Stickstoffdioxid NO₂ | `_no2` | µg/m³ |
-| Ozon O₃ | `_o3` | µg/m³ |
-| Schwefeldioxid SO₂ | `_so2` | µg/m³ |
-| Kohlenmonoxid CO | `_co` | mg/m³ |
+| Particulate Matter PM10 | `_pm10` | µg/m³ |
+| Particulate Matter PM2.5 | `_pm25` | µg/m³ |
+| Nitrogen Dioxide NO₂ | `_no2` | µg/m³ |
+| Ozone O₃ | `_o3` | µg/m³ |
+| Sulfur Dioxide SO₂ | `_so2` | µg/m³ |
+| Carbon Monoxide CO | `_co` | mg/m³ |
 
 ## Installation
 
-### HACS (benutzerdefiniertes Repository)
+### HACS (Custom Repository)
 
-1. HACS öffnen → Integrationen → Menü (⋮) → *Benutzerdefinierte Repositories*
-2. `https://github.com/karlrt/ha-austrian-air-quality` als Kategorie *Integration* hinzufügen
-3. „Luftqualität Österreich" installieren, Home Assistant neu starten
-4. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Luftqualität Österreich*
+1. Open HACS → Integrations → Menu (⋮) → *Custom repositories*
+2. Add `https://github.com/karlrt/ha-austrian-air-quality` as category *Integration*
+3. Install "Austrian Air Quality", restart Home Assistant
+4. *Settings → Devices & Services → Create Integration → Austrian Air Quality*
 
-### Manuell
+### Manual
 
-Den Ordner `custom_components/austrian_air_quality` in das `config/custom_components/`
-Verzeichnis der Home-Assistant-Installation kopieren und neu starten.
+Copy the `custom_components/austrian_air_quality` folder to the `config/custom_components/`
+directory of your Home Assistant installation and restart.
 
-## Konfiguration
+## Configuration
 
-Die Einrichtung erfolgt vollständig über die Benutzeroberfläche (Config Flow). Pro
-Messstation wird ein Eintrag angelegt.
+Setup is performed entirely through the user interface (Config Flow). One entry is created per
+measurement station.
 
-## Entwicklung
+## Development
 
-- Domain: `austrian_air_quality` (unveränderlich nach dem ersten Release)
-- Anzeigename: `Luftqualität Österreich`
+- Domain: `austrian_air_quality` (immutable after the first release)
+- Display name: `Austrian Air Quality`
 - Repository: `ha-austrian-air-quality`
 
-Siehe `custom_components/austrian_air_quality/` für den Quellcode.
+See `custom_components/austrian_air_quality/` for the source code.
 
-## Lizenz
+## License
 
-MIT – siehe [LICENSE](LICENSE).
+MIT – see [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
