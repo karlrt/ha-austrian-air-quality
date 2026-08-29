@@ -106,7 +106,7 @@ async def async_setup_entry(
 ) -> None:
     """Sensoren für einen Konfigurationseintrag anlegen."""
     coordinator = entry.runtime_data
-    available = coordinator.data.values if coordinator.data else {}
+    available = coordinator.data.measurements if coordinator.data else {}
 
     async_add_entities(
         AustrianAirQualitySensor(coordinator, entry, description)
@@ -144,7 +144,8 @@ class AustrianAirQualitySensor(CoordinatorEntity[AustrianAirQualityCoordinator],
         """Aktuellen Messwert zurückgeben."""
         if self.coordinator.data is None:
             return None
-        return self.coordinator.data.values.get(self.entity_description.pollutant)
+        measurement = self.coordinator.data.measurements.get(self.entity_description.pollutant)
+        return measurement.value if measurement else None
 
     @property
     def available(self) -> bool:
@@ -152,5 +153,5 @@ class AustrianAirQualitySensor(CoordinatorEntity[AustrianAirQualityCoordinator],
         return (
             super().available
             and self.coordinator.data is not None
-            and self.entity_description.pollutant in self.coordinator.data.values
+            and self.entity_description.pollutant in self.coordinator.data.measurements
         )

@@ -13,16 +13,16 @@ from .api import (
     AustrianAirQualityApiError,
     AustrianAirQualityAuthError,
     AustrianAirQualityApi,
-    AustrianAirQualityMeasurements,
+    AustrianAirQualityStation,
 )
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-type AustrianAirQualityConfigEntry = ConfigEntry[AustrianAirQualityCoordinator]
+type AustrianAirQualityConfigEntry = ConfigEntry["AustrianAirQualityCoordinator"]
 
 
-class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityMeasurements]):
+class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStation | None]):
     """Holt die Messwerte einer Station periodisch ab."""
 
     config_entry: AustrianAirQualityConfigEntry
@@ -45,10 +45,10 @@ class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityMeas
         self.api = api
         self.station_id = station_id
 
-    async def _async_update_data(self) -> AustrianAirQualityMeasurements:
+    async def _async_update_data(self) -> AustrianAirQualityStation | None:
         """Aktuelle Messwerte abrufen."""
         try:
-            return await self.api.async_get_measurements(self.station_id)
+            return await self.api.async_fetch_station_data(self.station_id)
         except AustrianAirQualityAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except AustrianAirQualityApiError as err:
