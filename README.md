@@ -18,31 +18,13 @@ updated every 30 minutes.
 
 Data comes from the JSON interface of the public air quality map at
 `luft.umweltbundesamt.at`. That interface is **undocumented** and can change or disappear
-<<<<<<< Updated upstream
-without notice — the integration reads it the same way the map application does. Only the
-half-hourly mean (HMW) is read; each pollutant is requested separately, with a short delay
-between requests, and a single failing pollutant does not take the whole station down.
-
-Requires Home Assistant 2026.8.0 or newer. No additional Python dependencies.
-
-## Measurements
-
-Sensors are created only for the pollutants a station actually reports.
-
-| Pollutant | Sensor name | Unit |
-|---|---|---|
-| Particulate matter PM10 | Particulate matter PM10 | µg/m³ |
-| Particulate matter PM2.5 | Particulate matter PM2.5 | µg/m³ |
-| Nitrogen dioxide NO₂ | Nitrogen dioxide | µg/m³ |
-| Ozone O₃ | Ozone | µg/m³ |
-| Sulphur dioxide SO₂ | Sulphur dioxide | µg/m³ |
-| Carbon monoxide CO | Carbon monoxide | mg/m³ |
-=======
 without notice – the integration reads it the same way the map application does. Two
 averaging periods are read, the half-hourly mean (HMW) and the daily mean (TMW), which
 makes 14 requests per station and update; every pollutant and period is requested
 separately, with a short delay in between, and a single failing request does not take the
 whole station down.
+
+Requires Home Assistant 2026.8.0 or newer. No additional Python dependencies.
 
 ## Measurements
 
@@ -60,16 +42,12 @@ of the day.
 | Ozone O₃ | Ozone | Ozone daily mean | µg/m³ |
 | Sulphur dioxide SO₂ | Sulphur dioxide | Sulphur dioxide daily mean | µg/m³ |
 | Carbon monoxide CO | Carbon monoxide | Carbon monoxide daily mean | mg/m³ |
->>>>>>> Stashed changes
 
 Every sensor carries the matching device class and `state_class: measurement`, so the values
 are recorded in long-term statistics. The entity ID is built from the station name and the
 sensor name in the language of the Home Assistant installation, for example
-<<<<<<< Updated upstream
-`sensor.graz_don_bosco_particulate_matter_pm10`.
-=======
+`sensor.graz_don_bosco_particulate_matter_pm10` and
 `sensor.graz_don_bosco_particulate_matter_pm10_daily_mean`.
->>>>>>> Stashed changes
 
 ## Installation
 
@@ -102,12 +80,10 @@ reports, before the entry is created. Stations that are already configured are h
 search that returns more than 25 stations asks for a more specific term instead of listing
 them all.
 
-<<<<<<< Updated upstream
-The user interface is available in English and German.
-=======
 Only the pollutants a station actually reports are created as sensors – each one as a
 current value and as a daily mean.
->>>>>>> Stashed changes
+
+The user interface is available in English and German.
 
 ## Station on a map
 
@@ -124,13 +100,9 @@ attributes:
 | `location` | Address as published by the Environment Agency |
 | `owner` | Operator of the station |
 | `station_id` | Station identifier |
-<<<<<<< Updated upstream
-| `measured_at` | Time of the reading (ISO 8601, pollutant sensors only) |
-=======
 | `altitude` | Altitude of the station in metres |
 | `measured_at` | Time of the reading (ISO 8601, pollutant sensors only) |
 | `value_class` | Threshold class of the reading – the colour scale of the official map – only present when the source assigns one |
->>>>>>> Stashed changes
 
 Because `latitude` and `longitude` are present, a station can be placed on a map card
 directly:

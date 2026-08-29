@@ -19,30 +19,12 @@ Sensoren werden alle 30 Minuten aktualisiert.
 Die Daten stammen aus der JSON-Schnittstelle der öffentlichen Luftgütekarte auf
 `luft.umweltbundesamt.at`. Diese Schnittstelle ist **nicht dokumentiert** und kann sich
 jederzeit ändern oder wegfallen – die Integration liest sie so, wie es die Kartenanwendung
-<<<<<<< Updated upstream
-selbst tut. Gelesen wird ausschließlich der Halbstundenmittelwert (HMW); jeder Schadstoff wird
-einzeln und mit kurzer Pause dazwischen abgefragt, ein einzelner Fehlschlag legt die Station
-nicht lahm.
-
-Benötigt Home Assistant 2026.8.0 oder neuer. Keine zusätzlichen Python-Abhängigkeiten.
-
-## Messgrößen
-
-Es werden nur die Schadstoffe als Sensoren angelegt, die die Station tatsächlich liefert.
-
-| Schadstoff | Sensorname | Einheit |
-|---|---|---|
-| Feinstaub PM10 | Feinstaub PM10 | µg/m³ |
-| Feinstaub PM2.5 | Feinstaub PM2.5 | µg/m³ |
-| Stickstoffdioxid NO₂ | Stickstoffdioxid | µg/m³ |
-| Ozon O₃ | Ozon | µg/m³ |
-| Schwefeldioxid SO₂ | Schwefeldioxid | µg/m³ |
-| Kohlenmonoxid CO | Kohlenmonoxid | mg/m³ |
-=======
 selbst tut. Gelesen werden zwei Mittelungszeiträume, der Halbstundenmittelwert (HMW) und der
 Tagesmittelwert (TMW), macht 14 Abfragen pro Station und Aktualisierung; jeder Schadstoff und
 Zeitraum wird einzeln und mit kurzer Pause dazwischen abgefragt, ein einzelner Fehlschlag legt
 die Station nicht lahm.
+
+Benötigt Home Assistant 2026.8.0 oder neuer. Keine zusätzlichen Python-Abhängigkeiten.
 
 ## Messgrößen
 
@@ -60,16 +42,12 @@ daher im Lauf des Tages mit.
 | Ozon O₃ | Ozon | Ozon Tagesmittel | µg/m³ |
 | Schwefeldioxid SO₂ | Schwefeldioxid | Schwefeldioxid Tagesmittel | µg/m³ |
 | Kohlenmonoxid CO | Kohlenmonoxid | Kohlenmonoxid Tagesmittel | mg/m³ |
->>>>>>> Stashed changes
 
 Jeder Sensor trägt die passende Device Class und `state_class: measurement`, die Werte landen
 also in der Langzeitstatistik. Die Entity-ID entsteht aus Stationsname und Sensorname in der
 Sprache der Home-Assistant-Installation, zum Beispiel
-<<<<<<< Updated upstream
-`sensor.graz_don_bosco_feinstaub_pm10`.
-=======
+`sensor.graz_don_bosco_feinstaub_pm10` und
 `sensor.graz_don_bosco_feinstaub_pm10_tagesmittel`.
->>>>>>> Stashed changes
 
 ## Installation
 
@@ -102,12 +80,10 @@ Schadstoffe, bevor der Eintrag angelegt wird. Bereits eingerichtete Messstellen 
 ausgeblendet. Liefert eine Suche mehr als 25 Stationen, wird statt der Liste ein genauerer
 Suchbegriff verlangt.
 
-<<<<<<< Updated upstream
-Die Benutzeroberfläche gibt es auf Deutsch und Englisch.
-=======
 Es werden nur die Schadstoffe als Sensoren angelegt, die die Station tatsächlich liefert –
 jeder davon als aktueller Wert und als Tagesmittel.
->>>>>>> Stashed changes
+
+Die Benutzeroberfläche gibt es auf Deutsch und Englisch.
 
 ## Station auf der Karte
 
@@ -123,13 +99,9 @@ Jeder Sensor – auch die Koordinaten-Entität – liefert die Stationsdaten als
 | `location` | Adresse laut Umweltbundesamt |
 | `owner` | Betreiber der Messstelle |
 | `station_id` | Kennung der Messstelle |
-<<<<<<< Updated upstream
-| `measured_at` | Zeitpunkt der Messung (ISO 8601, nur bei Schadstoffsensoren) |
-=======
 | `altitude` | Seehöhe der Messstelle in Metern |
 | `measured_at` | Zeitpunkt der Messung (ISO 8601, nur bei Schadstoffsensoren) |
 | `value_class` | Belastungsklasse des Werts – die Farbskala der offiziellen Karte – nur vorhanden, wenn die Quelle eine vergibt |
->>>>>>> Stashed changes
 
 Weil `latitude` und `longitude` vorhanden sind, kann die Messstelle direkt in einer
 Karten-Karte angezeigt werden:
