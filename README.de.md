@@ -9,23 +9,39 @@ Home-Assistant-Integration für Luftqualitätsmessdaten in Österreich (Datenque
 > oder Richtigkeit der Daten. Für rechtsverbindliche Auskünfte gilt ausschließlich die
 > offizielle Veröffentlichung des Umweltbundesamts.
 
+*English version: [README.md](README.md)*
+
 ## Status
 
-**Frühe Entwicklung – noch nicht lauffähig.** Das Repository enthält derzeit das Gerüst der
-Integration. Der Datenzugriff in `api.py` ist bewusst als Platzhalter angelegt: Endpunkt,
-Antwortformat, Aktualisierungsintervall und Nutzungsbedingungen der Datenquelle sind noch
-nicht verifiziert und müssen vor der ersten Implementierung geklärt werden.
+**Funktionsfähig.** Messstationen werden über den Config Flow gefunden und eingerichtet, ihre
+Sensoren werden alle 30 Minuten aktualisiert.
 
-## Messgrößen (geplant)
+Die Daten stammen aus der JSON-Schnittstelle der öffentlichen Luftgütekarte auf
+`luft.umweltbundesamt.at`. Diese Schnittstelle ist **nicht dokumentiert** und kann sich
+jederzeit ändern oder wegfallen – die Integration liest sie so, wie es die Kartenanwendung
+selbst tut. Gelesen wird ausschließlich der Halbstundenmittelwert (HMW); jeder Schadstoff wird
+einzeln und mit kurzer Pause dazwischen abgefragt, ein einzelner Fehlschlag legt die Station
+nicht lahm.
 
-| Schadstoff | Entity-Suffix | Einheit |
+Benötigt Home Assistant 2026.8.0 oder neuer. Keine zusätzlichen Python-Abhängigkeiten.
+
+## Messgrößen
+
+Es werden nur die Schadstoffe als Sensoren angelegt, die die Station tatsächlich liefert.
+
+| Schadstoff | Sensorname | Einheit |
 |---|---|---|
-| Feinstaub PM10 | `_pm10` | µg/m³ |
-| Feinstaub PM2.5 | `_pm25` | µg/m³ |
-| Stickstoffdioxid NO₂ | `_no2` | µg/m³ |
-| Ozon O₃ | `_o3` | µg/m³ |
-| Schwefeldioxid SO₂ | `_so2` | µg/m³ |
-| Kohlenmonoxid CO | `_co` | mg/m³ |
+| Feinstaub PM10 | Feinstaub PM10 | µg/m³ |
+| Feinstaub PM2.5 | Feinstaub PM2.5 | µg/m³ |
+| Stickstoffdioxid NO₂ | Stickstoffdioxid | µg/m³ |
+| Ozon O₃ | Ozon | µg/m³ |
+| Schwefeldioxid SO₂ | Schwefeldioxid | µg/m³ |
+| Kohlenmonoxid CO | Kohlenmonoxid | mg/m³ |
+
+Jeder Sensor trägt die passende Device Class und `state_class: measurement`, die Werte landen
+also in der Langzeitstatistik. Die Entity-ID entsteht aus Stationsname und Sensorname in der
+Sprache der Home-Assistant-Installation, zum Beispiel
+`sensor.graz_don_bosco_feinstaub_pm10`.
 
 ## Installation
 
@@ -47,24 +63,24 @@ Die Einrichtung erfolgt vollständig über die Benutzeroberfläche (Config Flow)
 Messstation wird ein Eintrag angelegt. Die Messstelle kann auf zwei Wegen gesucht werden:
 
 - **Auf der Karte (Umkreis)** – den Marker auf den eigenen Standort setzen und den Kreis auf
-  den gewünschten Suchradius ziehen. Alle Messstellen im Kreis werden nach Entfernung
-  sortiert aufgelistet, die nächstgelegene zuerst.
+  den gewünschten Suchradius ziehen (Standard 15 km, maximal 100 km). Alle Messstellen im
+  Kreis werden nach Entfernung sortiert aufgelistet, die nächstgelegene zuerst.
 - **Nach Stationsname** – einen Teil des Namens oder der Adresse eingeben, z. B. `Graz` oder
   `Stephansplatz`.
 
 Die Trefferliste zeigt bereits, welche Werte jede Station liefert. Nach der Auswahl folgt eine
 Detailansicht mit Adresse, Betreiber, Entfernung und den aktuellen Messwerten aller
 Schadstoffe, bevor der Eintrag angelegt wird. Bereits eingerichtete Messstellen werden
-ausgeblendet.
+ausgeblendet. Liefert eine Suche mehr als 25 Stationen, wird statt der Liste ein genauerer
+Suchbegriff verlangt.
 
-Es werden nur die Schadstoffe als Sensoren angelegt, die die Station tatsächlich liefert.
+Die Benutzeroberfläche gibt es auf Deutsch und Englisch.
 
 ## Station auf der Karte
 
-Jede Station bekommt zusätzlich eine Diagnose-Entität **Koordinaten** (Suffix
-`_koordinaten`), deren Zustand die Position als `47.06695, 15.44226` anzeigt. Sie steht auf
-der Geräteseite unter *Diagnose* und ist der passende Eintrag für eine Karten-Karte, weil es
-sie genau einmal pro Station gibt.
+Jede Station bekommt zusätzlich eine Diagnose-Entität **Koordinaten**, deren Zustand die
+Position als `47.06695, 15.44226` anzeigt. Sie steht auf der Geräteseite unter *Diagnose* und
+ist der passende Eintrag für eine Karten-Karte, weil es sie genau einmal pro Station gibt.
 
 Jeder Sensor – auch die Koordinaten-Entität – liefert die Stationsdaten als Attribute mit:
 
@@ -74,7 +90,7 @@ Jeder Sensor – auch die Koordinaten-Entität – liefert die Stationsdaten als
 | `location` | Adresse laut Umweltbundesamt |
 | `owner` | Betreiber der Messstelle |
 | `station_id` | Kennung der Messstelle |
-| `measured_at` | Zeitpunkt der Messung (ISO 8601) |
+| `measured_at` | Zeitpunkt der Messung (ISO 8601, nur bei Schadstoffsensoren) |
 
 Weil `latitude` und `longitude` vorhanden sind, kann die Messstelle direkt in einer
 Karten-Karte angezeigt werden:
@@ -93,12 +109,13 @@ ein Sensor pro Station, sonst liegen mehrere Marker exakt übereinander.
 - Domain: `austrian_air_quality` (unveränderlich nach dem ersten Release)
 - Anzeigename: `Luftqualität Österreich`
 - Repository: `ha-austrian-air-quality`
+- Jeder Push wird von hassfest und der HACS-Action geprüft (siehe `.github/workflows/validate.yml`)
 
 Siehe `custom_components/austrian_air_quality/` für den Quellcode.
 
 ## Lizenz
 
-MIT – siehe [LICENSE](LICENSE).
+Apache-2.0 – siehe [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg

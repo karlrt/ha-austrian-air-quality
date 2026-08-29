@@ -9,23 +9,38 @@ Home Assistant integration for air quality measurements in Austria (data source:
 > timeliness, or accuracy of the data. For legally binding information, refer exclusively to the
 > official publication of the Federal Environment Agency Austria.
 
+*Deutsche Fassung: [README.de.md](README.de.md)*
+
 ## Status
 
-**Early development – not yet functional.** The repository currently contains the skeleton of the
-integration. Data access in `api.py` is intentionally implemented as a placeholder: endpoint,
-response format, update interval, and data source terms of use have not yet been verified and
-must be clarified before the first implementation.
+**Working.** Stations are found and set up through the config flow, and their sensors are
+updated every 30 minutes.
 
-## Measurements (planned)
+Data comes from the JSON interface of the public air quality map at
+`luft.umweltbundesamt.at`. That interface is **undocumented** and can change or disappear
+without notice — the integration reads it the same way the map application does. Only the
+half-hourly mean (HMW) is read; each pollutant is requested separately, with a short delay
+between requests, and a single failing pollutant does not take the whole station down.
 
-| Pollutant | Entity Suffix | Unit |
+Requires Home Assistant 2026.8.0 or newer. No additional Python dependencies.
+
+## Measurements
+
+Sensors are created only for the pollutants a station actually reports.
+
+| Pollutant | Sensor name | Unit |
 |---|---|---|
-| Particulate Matter PM10 | `_pm10` | µg/m³ |
-| Particulate Matter PM2.5 | `_pm25` | µg/m³ |
-| Nitrogen Dioxide NO₂ | `_no2` | µg/m³ |
-| Ozone O₃ | `_o3` | µg/m³ |
-| Sulfur Dioxide SO₂ | `_so2` | µg/m³ |
-| Carbon Monoxide CO | `_co` | mg/m³ |
+| Particulate matter PM10 | Particulate matter PM10 | µg/m³ |
+| Particulate matter PM2.5 | Particulate matter PM2.5 | µg/m³ |
+| Nitrogen dioxide NO₂ | Nitrogen dioxide | µg/m³ |
+| Ozone O₃ | Ozone | µg/m³ |
+| Sulphur dioxide SO₂ | Sulphur dioxide | µg/m³ |
+| Carbon monoxide CO | Carbon monoxide | mg/m³ |
+
+Every sensor carries the matching device class and `state_class: measurement`, so the values
+are recorded in long-term statistics. The entity ID is built from the station name and the
+sensor name in the language of the Home Assistant installation, for example
+`sensor.graz_don_bosco_particulate_matter_pm10`.
 
 ## Installation
 
@@ -33,8 +48,8 @@ must be clarified before the first implementation.
 
 1. Open HACS → Integrations → Menu (⋮) → *Custom repositories*
 2. Add `https://github.com/karlrt/ha-austrian-air-quality` as category *Integration*
-3. Install "Austrian Air Quality", restart Home Assistant
-4. *Settings → Devices & Services → Create Integration → Austrian Air Quality*
+3. Install "Luftqualität Österreich", restart Home Assistant
+4. *Settings → Devices & Services → Create Integration → Luftqualität Österreich*
 
 ### Manual
 
@@ -47,20 +62,24 @@ Setup is performed entirely through the user interface (Config Flow). One entry 
 measurement station. Stations can be found in two ways:
 
 - **On the map (by radius)** – drop the marker on your location and drag the circle to the
-  search radius. All stations inside the circle are listed by distance, nearest first.
-- **By station name** – enter part of a station name or address, e.g. `Graz` or `Stephansplatz`.
+  search radius (default 15 km, at most 100 km). All stations inside the circle are listed by
+  distance, nearest first.
+- **By station name** – enter part of a station name or address, e.g. `Graz` or
+  `Stephansplatz`.
 
 The result list already shows what each station measures. After picking one, a detail view
 shows its address, operator, distance and the current readings for every pollutant it
-reports, before the entry is created. Stations that are already configured are hidden.
+reports, before the entry is created. Stations that are already configured are hidden. A
+search that returns more than 25 stations asks for a more specific term instead of listing
+them all.
 
-Only the pollutants a station actually reports are created as sensors.
+The user interface is available in English and German.
 
 ## Station on a map
 
-Each station also gets a **Coordinates** diagnostic entity (suffix `_coordinates`) whose
-state shows the position as `47.06695, 15.44226`. It appears on the device page under
-*Diagnostic* and is the entity to put on a map card, since there is exactly one per station.
+Each station also gets a **Coordinates** diagnostic entity whose state shows the position as
+`47.06695, 15.44226`. It appears on the device page under *Diagnostic* and is the entity to
+put on a map card, since there is exactly one per station.
 
 Every sensor – the coordinates entity included – exposes the station metadata as state
 attributes:
@@ -71,7 +90,7 @@ attributes:
 | `location` | Address as published by the Environment Agency |
 | `owner` | Operator of the station |
 | `station_id` | Station identifier |
-| `measured_at` | Time of the reading (ISO 8601) |
+| `measured_at` | Time of the reading (ISO 8601, pollutant sensors only) |
 
 Because `latitude` and `longitude` are present, a station can be placed on a map card
 directly:
@@ -88,8 +107,9 @@ otherwise several markers end up on exactly the same spot.
 ## Development
 
 - Domain: `austrian_air_quality` (immutable after the first release)
-- Display name: `Austrian Air Quality`
+- Display name: `Luftqualität Österreich`
 - Repository: `ha-austrian-air-quality`
+- Every push is checked by hassfest and the HACS action (see `.github/workflows/validate.yml`)
 
 See `custom_components/austrian_air_quality/` for the source code.
 
