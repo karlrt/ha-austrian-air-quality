@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.const import Platform
+from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -19,7 +19,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfig
     api = AustrianAirQualityApi(session)
 
     coordinator = AustrianAirQualityCoordinator(
-        hass, entry, api, entry.data[CONF_STATION_ID]
+        hass,
+        entry,
+        api,
+        entry.data[CONF_STATION_ID],
+        entry.data.get(CONF_LATITUDE),
+        entry.data.get(CONF_LONGITUDE),
     )
     await coordinator.async_config_entry_first_refresh()
 

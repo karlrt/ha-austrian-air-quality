@@ -10,15 +10,33 @@ import asyncio
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from math import asin, cos, radians, sin, sqrt
 
 import aiohttp
+
+from .const import (
+    AT_BBOX,
+    POLLUTANT_CO,
+    POLLUTANT_NO2,
+    POLLUTANT_O3,
+    POLLUTANT_PM10,
+    POLLUTANT_PM25,
+    POLLUTANT_SO2,
+    STATION_BBOX_PADDING,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 BASE_URL = "https://luft.umweltbundesamt.at/pub/map_chart/index.pl"
 REQUEST_TIMEOUT = 30
+
+# The endpoint is public and undocumented, so the pollutant queries are spaced
+# out by this many seconds.
+REQUEST_DELAY = 0.3
+
+EARTH_RADIUS_KM = 6371.0
 
 _MONTHS = {
     m: i + 1
@@ -82,6 +100,37 @@ def parse_measurement_time(raw: str | None) -> datetime | None:
         return None
 
 
+def distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance between two points in kilometres."""
+    d_lat = radians(lat2 - lat1)
+    d_lon = radians(lon2 - lon1)
+    a = (
+        sin(d_lat / 2) ** 2
+        + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2
+    )
+    return 2 * EARTH_RADIUS_KM * asin(sqrt(a))
+
+
+def bbox_around(
+    latitude: float, longitude: float, radius_km: float
+) -> tuple[float, float, float, float]:
+    """Bounding box around a point, as (lat_start, lat_end, lng_start, lng_end).
+
+    A rough kilometre-to-degree conversion is entirely sufficient here; the box
+    only pre-filters the stations, the exact radius is applied afterwards.
+    """
+    km_per_degree_lat = 111.0
+    lat_delta = radius_km / km_per_degree_lat
+    lon_scale = max(cos(radians(latitude)), 0.1)
+    lon_delta = radius_km / (km_per_degree_lat * lon_scale)
+    return (
+        latitude - lat_delta,
+        latitude + lat_delta,
+        longitude - lon_delta,
+        longitude + lon_delta,
+    )
+
+
 @dataclass(slots=True)
 class AustrianAirQualityMeasurement:
     """A measurement from a station."""
@@ -109,9 +158,16 @@ class AustrianAirQualityStation:
     owner: str | None
     latitude: float | None
     longitude: float | None
-    # Key: pollutant_key (pm10, pm25, no2, o3, so2, co)
+    # Key: pollutant key (pm10, pm25, no2, o3, so2, co)
     # Value: AustrianAirQualityMeasurement
-    measurements: dict[str, AustrianAirQualityMeasurement]
+    measurements: dict[str, AustrianAirQualityMeasurement] = field(
+        default_factory=dict
+    )
+
+    @property
+    def pollutants(self) -> list[str]:
+        """Pollutant keys this station currently reports, in a stable order."""
+        return [key for key in _POLLUTANT_MAPPING if key in self.measurements]
 
 
 def _to_float(raw: object) -> float | None:
@@ -155,12 +211,12 @@ def _parse_measurement(entry: dict) -> AustrianAirQualityMeasurement | None:
 # Mapping of integration keys to API components and averaging periods.
 # For simplified API: only HMW (half-hour average) or most common variant.
 _POLLUTANT_MAPPING = {
-    "pm10": ("PM10_K", "HMW"),
-    "pm25": ("PM2_5_K", "HMW"),
-    "no2": ("NO2", "HMW"),
-    "o3": ("O3", "HMW"),
-    "so2": ("SO2", "HMW"),
-    "co": ("CO", "HMW"),
+    POLLUTANT_PM10: ("PM10_K", "HMW"),
+    POLLUTANT_PM25: ("PM2_5_K", "HMW"),
+    POLLUTANT_NO2: ("NO2", "HMW"),
+    POLLUTANT_O3: ("O3", "HMW"),
+    POLLUTANT_SO2: ("SO2", "HMW"),
+    POLLUTANT_CO: ("CO", "HMW"),
 }
 
 
@@ -171,108 +227,96 @@ class AustrianAirQualityApi:
         """Initialize client with a shared aiohttp session."""
         self._session = session
 
-    async def async_get_stations(self) -> list[AustrianAirQualityStation]:
-        """Fetch the list of currently reporting measurement stations.
+    async def async_get_stations(
+        self, bbox: tuple[float, float, float, float] | None = None
+    ) -> list[AustrianAirQualityStation]:
+        """Fetch the currently reporting measurement stations in a bounding box.
 
-        Scans all of Austria for every known pollutant and aggregates the
-        unique stations. Used by the config flow to populate the station
-        picker. The ``measurements`` mapping of the returned stations is
-        left empty; the coordinator fills in live values later.
+        Queries every known pollutant and aggregates them per station, so each
+        returned station already carries the measurements it currently reports.
+        Defaults to all of Austria. Used by the config flow to populate the
+        station picker and to show what a station actually measures.
         """
-        bbox = (46.2, 49.3, 9.3, 17.3)  # All of Austria
+        stations = await self._async_collect(bbox or AT_BBOX)
+        return sorted(stations.values(), key=lambda station: station.station_name)
 
+    async def async_fetch_station_data(
+        self,
+        station_id: str,
+        latitude: float | None = None,
+        longitude: float | None = None,
+    ) -> AustrianAirQualityStation | None:
+        """Fetch all measurements for a single measurement station.
+
+        When the station coordinates are known, a small bounding box around them
+        keeps the responses small. Otherwise all of Austria has to be scanned
+        and the station is filtered out afterwards.
+        """
+        if latitude is not None and longitude is not None:
+            bbox = (
+                latitude - STATION_BBOX_PADDING,
+                latitude + STATION_BBOX_PADDING,
+                longitude - STATION_BBOX_PADDING,
+                longitude + STATION_BBOX_PADDING,
+            )
+        else:
+            bbox = AT_BBOX
+
+        stations = await self._async_collect(bbox, station_id=station_id)
+        return stations.get(station_id)
+
+    async def _async_collect(
+        self,
+        bbox: tuple[float, float, float, float],
+        station_id: str | None = None,
+    ) -> dict[str, AustrianAirQualityStation]:
+        """Query every pollutant for a bounding box and group by station.
+
+        Individual pollutant failures are tolerated; only a complete failure of
+        all requests is raised, so one flaky parameter does not take the whole
+        station down.
+        """
         stations: dict[str, AustrianAirQualityStation] = {}
         failures = 0
-        mappings = list(_POLLUTANT_MAPPING.values())
 
-        for index, (component, meantype) in enumerate(mappings):
+        for index, (pollutant_key, (component, meantype)) in enumerate(
+            _POLLUTANT_MAPPING.items()
+        ):
             if index:
-                # Be gentle with the undocumented public endpoint.
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(REQUEST_DELAY)
             try:
                 measurements = await self._async_fetch_pollutant(
                     bbox, component, meantype
                 )
             except AustrianAirQualityApiError as err:
                 _LOGGER.warning(
-                    "Error retrieving station list for %s/%s: %s",
-                    component,
-                    meantype,
-                    err,
+                    "Error retrieving %s/%s: %s", component, meantype, err
                 )
                 failures += 1
                 continue
 
             for measurement in measurements.values():
-                stations.setdefault(
-                    measurement.station_id,
-                    AustrianAirQualityStation(
+                if station_id is not None and measurement.station_id != station_id:
+                    continue
+                station = stations.get(measurement.station_id)
+                if station is None:
+                    station = AustrianAirQualityStation(
                         station_id=measurement.station_id,
                         station_name=measurement.station_name,
                         location=measurement.location,
                         owner=measurement.owner,
                         latitude=measurement.latitude,
                         longitude=measurement.longitude,
-                        measurements={},
-                    ),
-                )
+                    )
+                    stations[measurement.station_id] = station
+                station.measurements[pollutant_key] = measurement
 
-        if failures == len(mappings):
+        if failures == len(_POLLUTANT_MAPPING):
             raise AustrianAirQualityConnectionError(
-                "None of the station list requests succeeded"
+                "None of the air quality requests succeeded"
             )
 
-        return sorted(stations.values(), key=lambda station: station.station_name)
-
-    async def async_fetch_station_data(
-        self, station_id: str
-    ) -> AustrianAirQualityStation | None:
-        """Fetch all measurements for a single measurement station.
-
-        Calls the API for each pollutant individually and aggregates
-        results into one station.
-        """
-        # Query a small bounding box around the station.
-        # We don't know the coordinates in advance, so we use a wide box
-        # and filter by station_id.
-        bbox = (46.2, 49.3, 9.3, 17.3)  # All of Austria
-
-        all_measurements: dict[str, AustrianAirQualityMeasurement] = {}
-        station_info = None
-
-        for pollutant_key, (component, meantype) in _POLLUTANT_MAPPING.items():
-            try:
-                measurements = await self._async_fetch_pollutant(
-                    bbox, component, meantype
-                )
-                if station_id in measurements:
-                    m = measurements[station_id]
-                    all_measurements[pollutant_key] = m
-                    # Station-Info vom ersten erfolgreich abgerufenen Messwert nutzen
-                    if station_info is None:
-                        station_info = AustrianAirQualityStation(
-                            station_id=m.station_id,
-                            station_name=m.station_name,
-                            location=m.location,
-                            owner=m.owner,
-                            latitude=m.latitude,
-                            longitude=m.longitude,
-                            measurements={},
-                        )
-            except AustrianAirQualityApiError as err:
-                _LOGGER.warning(
-                    "Fehler beim Abruf von %s für Station %s: %s",
-                    pollutant_key,
-                    station_id,
-                    err,
-                )
-                # Weitermachen mit den anderen Schadsstoffen
-
-        if not station_info:
-            return None
-
-        station_info.measurements = all_measurements
-        return station_info
+        return stations
 
     async def _async_fetch_pollutant(
         self,
@@ -306,7 +350,7 @@ class AustrianAirQualityApi:
                     raise AustrianAirQualityAuthError(f"HTTP {response.status}")
                 if response.status != 200:
                     raise AustrianAirQualityConnectionError(
-                        f"HTTP {response.status} für {component}/{meantype}"
+                        f"HTTP {response.status} for {component}/{meantype}"
                     )
                 # The interface responds with text/plain instead of JSON.
                 text = await response.text()

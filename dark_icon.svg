@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Luftqualität Österreich">
+  <rect x="0" y="32" width="256" height="44" rx="22" fill="#ED2939"></rect>
+  <rect x="0" y="106" width="184" height="44" rx="22" fill="#A6ACA5"></rect>
+  <rect x="0" y="180" width="112" height="44" rx="22" fill="#5D635D"></rect>
+</svg>

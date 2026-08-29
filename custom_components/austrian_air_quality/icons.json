@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "station_location": {
+        "default": "mdi:map-marker"
+      }
+    }
+  }
+}

@@ -33,6 +33,8 @@ class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStat
         config_entry: AustrianAirQualityConfigEntry,
         api: AustrianAirQualityApi,
         station_id: str,
+        latitude: float | None = None,
+        longitude: float | None = None,
     ) -> None:
         """Initialize coordinator."""
         super().__init__(
@@ -44,11 +46,27 @@ class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStat
         )
         self.api = api
         self.station_id = station_id
+        self.latitude = latitude
+        self.longitude = longitude
+
+    @property
+    def station_coordinates(self) -> tuple[float | None, float | None]:
+        """Coordinates of the station, freshest first.
+
+        The API repeats them with every measurement; the values captured when
+        the station was added serve as a fallback while it reports nothing.
+        """
+        station = self.data
+        if station is not None and station.latitude is not None and station.longitude is not None:
+            return station.latitude, station.longitude
+        return self.latitude, self.longitude
 
     async def _async_update_data(self) -> AustrianAirQualityStation | None:
         """Fetch current measurements."""
         try:
-            return await self.api.async_fetch_station_data(self.station_id)
+            return await self.api.async_fetch_station_data(
+                self.station_id, self.latitude, self.longitude
+            )
         except AustrianAirQualityAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except AustrianAirQualityApiError as err:

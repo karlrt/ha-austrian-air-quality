@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="128" viewBox="0 0 512 128" role="img" aria-label="Luftqualität Österreich">
+  <g>
+    <rect x="0" y="25" width="104" height="18" rx="9" fill="#ED2939"></rect>
+    <rect x="0" y="55" width="75" height="18" rx="9" fill="#6E736C"></rect>
+    <rect x="0" y="85" width="46" height="18" rx="9" fill="#C2C7C0"></rect>
+  </g>
+  <g font-family="'IBM Plex Sans','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="34" letter-spacing="-0.85">
+    <text x="130" y="58" font-weight="600" fill="#17181A">Luftqualität</text>
+    <text x="130" y="94" font-weight="400" fill="#55564F">Österreich</text>
+  </g>
+</svg>

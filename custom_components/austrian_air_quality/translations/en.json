@@ -3,15 +3,45 @@
   "config": {
     "step": {
       "user": {
+        "title": "Find a measuring station",
+        "menu_options": {
+          "location": "Search on the map (by radius)",
+          "name": "Search by station name"
+        }
+      },
+      "location": {
+        "title": "Choose the search area",
+        "data": {
+          "location": "Location",
+          "radius": "Search radius"
+        }
+      },
+      "name": {
+        "title": "Search by station name",
+        "data": {
+          "query": "Search term"
+        }
+      },
+      "station": {
         "title": "Select measuring station",
-        "description": "Choose the air quality measuring station to add as a device.",
         "data": {
           "station_id": "Measuring station"
+        }
+      },
+      "details": {
+        "title": "Review measuring station",
+        "description": "**{station}**\n\nAddress: {address}\n\nOperator: {owner}\n\nDistance: {distance}\n\nThe station currently reports these measurements, which will be added as sensors:\n\n| Measurement | Current | Time |\n| --- | --- | --- |\n{measurements}",
+        "menu_options": {
+          "confirm": "Add this measuring station",
+          "station": "Pick a different station",
+          "user": "Start a new search"
         }
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to the data source.",
+      "no_stations": "No measuring station found. Increase the search radius or change the search term.",
+      "too_many_stations": "Too many matches. Please enter a more specific search term.",
       "unknown": "Unexpected error."
     },
     "abort": {
@@ -20,12 +50,27 @@
   },
   "entity": {
     "sensor": {
-      "pm10": { "name": "Particulate matter PM10" },
-      "pm25": { "name": "Particulate matter PM2.5" },
-      "no2": { "name": "Nitrogen dioxide" },
-      "o3": { "name": "Ozone" },
-      "so2": { "name": "Sulphur dioxide" },
-      "co": { "name": "Carbon monoxide" }
+      "pm10": {
+        "name": "Particulate matter PM10"
+      },
+      "pm25": {
+        "name": "Particulate matter PM2.5"
+      },
+      "no2": {
+        "name": "Nitrogen dioxide"
+      },
+      "o3": {
+        "name": "Ozone"
+      },
+      "so2": {
+        "name": "Sulphur dioxide"
+      },
+      "co": {
+        "name": "Carbon monoxide"
+      },
+      "station_location": {
+        "name": "Coordinates"
+      }
     }
   }
 }
