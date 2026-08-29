@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -22,6 +23,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
 )
+from homeassistant.util import dt as dt_util
 
 from .api import (
     AustrianAirQualityApi,
@@ -37,6 +39,7 @@ from .const import (
     CONF_QUERY,
     CONF_STATION_ID,
     CONF_STATION_NAME,
+    DATA_PREFETCHED,
     DEFAULT_RADIUS_KM,
     DOMAIN,
     MAX_RADIUS_KM,
@@ -83,6 +86,8 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
         self._distances: dict[str, float] = {}
         self._all_stations: list[AustrianAirQualityStation] | None = None
         self._selected: AustrianAirQualityStation | None = None
+        self._prefetch: asyncio.Task[AustrianAirQualityStation | None] | None = None
+        self._prefetch_for: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -127,13 +132,18 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
                         self._distances[station.station_id] = distance
                         within.append(station)
 
-                self._candidates = sorted(
-                    self._drop_configured(within),
-                    key=lambda station: self._distances[station.station_id],
-                )
-                if not self._candidates:
+                remaining = self._drop_configured(within)
+                if not within:
                     errors["base"] = "no_stations"
+                elif not remaining:
+                    # Everything inside the circle is already set up, which is
+                    # a different situation than finding nothing at all.
+                    errors["base"] = "all_configured"
                 else:
+                    self._candidates = sorted(
+                        remaining,
+                        key=lambda station: self._distances[station.station_id],
+                    )
                     return await self.async_step_station()
 
         schema = vol.Schema(
@@ -178,26 +188,38 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.warning("Station search failed: %s", err)
                 errors["base"] = "cannot_connect"
             else:
-                matches = [
-                    station
-                    for station in stations
-                    if query in station.station_name.casefold()
-                    or query in (station.location or "").casefold()
-                ]
-                # Name matches are ranked by how far they are from home, so the
-                # nearest "Graz ..." is the first one offered.
+                # The address is searched as well, so that a municipality or a
+                # district finds the station standing there. Those hits are
+                # ranked behind the ones carrying the term in their name,
+                # otherwise a "Klagenfurter Straße" in another town outranks
+                # the stations actually called Klagenfurt.
+                matches: list[AustrianAirQualityStation] = []
+                by_name: set[str] = set()
+                for station in stations:
+                    if query in station.station_name.casefold():
+                        by_name.add(station.station_id)
+                    elif query not in (station.location or "").casefold():
+                        continue
+                    matches.append(station)
+
+                # Within each of the two groups the nearest station to home
+                # comes first, so the closest "Graz ..." is the one offered.
                 self._distances = self._distances_from_home(matches)
-                self._candidates = sorted(
-                    self._drop_configured(matches),
-                    key=lambda station: self._distances.get(
-                        station.station_id, float("inf")
-                    ),
-                )
-                if not self._candidates:
+                remaining = self._drop_configured(matches)
+                if not matches:
                     errors["base"] = "no_stations"
-                elif len(self._candidates) > MAX_RESULTS:
+                elif not remaining:
+                    errors["base"] = "all_configured"
+                elif len(remaining) > MAX_RESULTS:
                     errors["base"] = "too_many_stations"
                 else:
+                    self._candidates = sorted(
+                        remaining,
+                        key=lambda station: (
+                            station.station_id not in by_name,
+                            self._distances.get(station.station_id, float("inf")),
+                        ),
+                    )
                     return await self.async_step_station()
 
         schema = vol.Schema(
@@ -218,6 +240,7 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
                 for station in self._candidates
                 if station.station_id == station_id
             )
+            self._start_prefetch(self._selected)
             return await self.async_step_details()
 
         shown = self._candidates[:MAX_RESULTS]
@@ -293,6 +316,16 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(station.station_id)
         self._abort_if_unique_id_configured()
 
+        # Hand the full measurements over to the setup that follows, so it does
+        # not repeat the round of requests that has been running in the
+        # background since this station was picked.
+        complete = await self._async_take_prefetch(station.station_id)
+        if complete is not None:
+            prefetched = self.hass.data.setdefault(DOMAIN, {}).setdefault(
+                DATA_PREFETCHED, {}
+            )
+            prefetched[station.station_id] = (dt_util.utcnow(), complete)
+
         return self.async_create_entry(
             title=station.station_name,
             data={
@@ -302,6 +335,56 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_LONGITUDE: station.longitude,
             },
         )
+
+    def _start_prefetch(self, station: AustrianAirQualityStation) -> None:
+        """Begin loading everything the chosen station reports.
+
+        The picker only knows the current values, while the entry also needs
+        the daily means. Fetching those while the review screen is on display
+        means most of the wait is over by the time the station is confirmed.
+        """
+        if self._prefetch is not None and self._prefetch_for == station.station_id:
+            return
+        self._cancel_prefetch()
+
+        api = AustrianAirQualityApi(async_get_clientsession(self.hass))
+        self._prefetch_for = station.station_id
+        self._prefetch = self.hass.async_create_background_task(
+            api.async_fetch_station_data(
+                station.station_id, station.latitude, station.longitude
+            ),
+            f"{DOMAIN} prefetch {station.station_id}",
+        )
+
+    def _cancel_prefetch(self) -> None:
+        """Drop a running prefetch, for instance after picking another station."""
+        if self._prefetch is not None and not self._prefetch.done():
+            self._prefetch.cancel()
+        self._prefetch = None
+        self._prefetch_for = None
+
+    async def _async_take_prefetch(
+        self, station_id: str
+    ) -> AustrianAirQualityStation | None:
+        """Wait for the prefetch of this station and hand over its result.
+
+        Waiting here is never slower than letting the setup fetch by itself,
+        and a failed request simply leaves that to the setup.
+        """
+        if self._prefetch is None or self._prefetch_for != station_id:
+            return None
+        try:
+            return await self._prefetch
+        except (AustrianAirQualityApiError, asyncio.CancelledError) as err:
+            _LOGGER.debug("Prefetch for %s failed: %s", station_id, err)
+            return None
+        finally:
+            self._prefetch = None
+            self._prefetch_for = None
+
+    async def async_remove(self) -> None:
+        """Clean up when the flow is abandoned."""
+        self._cancel_prefetch()
 
     def _distances_from_home(
         self, stations: list[AustrianAirQualityStation]

@@ -26,6 +26,17 @@ ATTR_VALUE_CLASS: Final = "value_class"
 
 DEFAULT_SCAN_INTERVAL: Final = timedelta(minutes=30)
 
+# The config flow already downloads everything a station reports in order to
+# show it for review. That result is handed to the setup of the new entry under
+# this key, so adding a station does not fetch the same data a second time and
+# the dialog closes right away instead of waiting out another full round.
+DATA_PREFETCHED: Final = "prefetched_stations"
+
+# How long such a handoff stays usable. Long enough to cover a user who reads
+# the review screen for a while, short enough that the entry never starts up
+# on measurements that have since been superseded.
+PREFETCH_MAX_AGE: Final = timedelta(minutes=10)
+
 # Default and maximum radius of the station search, in kilometres.
 DEFAULT_RADIUS_KM: Final = 15
 MAX_RADIUS_KM: Final = 100

@@ -41,6 +41,7 @@
     "error": {
       "cannot_connect": "Failed to connect to the data source.",
       "no_stations": "No measuring station found. Increase the search radius or change the search term.",
+      "all_configured": "All matching measuring stations are already set up.",
       "too_many_stations": "Too many matches. Please enter a more specific search term.",
       "unknown": "Unexpected error."
     },

@@ -41,6 +41,7 @@
     "error": {
       "cannot_connect": "Verbindung zur Datenquelle fehlgeschlagen.",
       "no_stations": "Keine Messstelle gefunden. Vergrößere den Suchradius oder ändere den Suchbegriff.",
+      "all_configured": "Alle passenden Messstationen sind bereits eingerichtet.",
       "too_many_stations": "Zu viele Treffer. Bitte gib einen genaueren Suchbegriff ein.",
       "unknown": "Unerwarteter Fehler."
     },
