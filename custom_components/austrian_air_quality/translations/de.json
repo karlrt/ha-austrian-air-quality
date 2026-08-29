@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Messstation auswählen",
+        "description": "Wähle die Luftqualitäts-Messstelle, die als Gerät angelegt werden soll.",
+        "data": {
+          "station_id": "Messstation"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur Datenquelle fehlgeschlagen.",
+      "unknown": "Unerwarteter Fehler."
+    },
+    "abort": {
+      "already_configured": "Diese Messstation ist bereits eingerichtet."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pm10": { "name": "Feinstaub PM10" },
+      "pm25": { "name": "Feinstaub PM2.5" },
+      "no2": { "name": "Stickstoffdioxid" },
+      "o3": { "name": "Ozon" },
+      "so2": { "name": "Schwefeldioxid" },
+      "co": { "name": "Kohlenmonoxid" }
+    }
+  }
+}
