@@ -93,6 +93,75 @@
       "co_daily": {
         "name": "Kohlenmonoxid Tagesmittel"
       },
+      "air_quality_index": {
+        "name": "Luftqualitätsindex",
+        "state": {
+          "good": "Gut",
+          "fair": "Annehmbar",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "very_poor": "Sehr schlecht",
+          "extremely_poor": "Extrem schlecht"
+        }
+      },
+      "air_quality_index_level": {
+        "name": "Luftqualitätsindex Stufe"
+      },
+      "pm25_index": {
+        "name": "PM2.5 Index",
+        "state": {
+          "good": "Gut",
+          "fair": "Annehmbar",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "very_poor": "Sehr schlecht",
+          "extremely_poor": "Extrem schlecht"
+        }
+      },
+      "pm10_index": {
+        "name": "PM10 Index",
+        "state": {
+          "good": "Gut",
+          "fair": "Annehmbar",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "very_poor": "Sehr schlecht",
+          "extremely_poor": "Extrem schlecht"
+        }
+      },
+      "o3_index": {
+        "name": "Ozon Index",
+        "state": {
+          "good": "Gut",
+          "fair": "Annehmbar",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "very_poor": "Sehr schlecht",
+          "extremely_poor": "Extrem schlecht"
+        }
+      },
+      "no2_index": {
+        "name": "Stickstoffdioxid Index",
+        "state": {
+          "good": "Gut",
+          "fair": "Annehmbar",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "very_poor": "Sehr schlecht",
+          "extremely_poor": "Extrem schlecht"
+        }
+      },
+      "so2_index": {
+        "name": "Schwefeldioxid Index",
+        "state": {
+          "good": "Gut",
+          "fair": "Annehmbar",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "very_poor": "Sehr schlecht",
+          "extremely_poor": "Extrem schlecht"
+        }
+      },
       "station_location": {
         "name": "Koordinaten"
       }

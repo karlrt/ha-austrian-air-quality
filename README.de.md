@@ -49,6 +49,172 @@ Sprache der Home-Assistant-Installation, zum Beispiel
 `sensor.graz_don_bosco_feinstaub_pm10` und
 `sensor.graz_don_bosco_feinstaub_pm10_tagesmittel`.
 
+## Europäischer Luftqualitätsindex (EAQI)
+
+Über die reinen Messwerte hinaus wird jede Station nach dem **European Air Quality Index**
+der Europäischen Umweltagentur (EEA) eingestuft. Dafür kommen drei Arten von Entities dazu:
+
+| Entity | Zustand | Inhalt |
+|---|---|---|
+| *Ozon Index*, *PM10 Index*, … | `good` … `extremely_poor` | Teilindex eines Schadstoffs |
+| *Luftqualitätsindex* | `good` … `extremely_poor` | Stationsindex: der schlechteste Teilindex |
+| *Luftqualitätsindex Stufe* | `1` … `6` | dasselbe als Zahl, für Graphen und Vergleiche |
+
+Die Zustände sind englisch und stabil, damit Automationen unabhängig von der
+Oberflächensprache funktionieren; übersetzt werden nur die Anzeigenamen.
+
+### Bänder
+
+Konzentrationen in µg/m³. Quelle: European Environment Agency, *European Air Quality
+Index*, <https://airindex.eea.europa.eu/AQI/index.html>, Bändertabelle in der Fassung der
+Revision 2024, abgerufen am 2026-08-31.
+
+| Schadstoff | good | fair | moderate | poor | very poor | extremely poor |
+|---|---|---|---|---|---|---|
+| PM2.5 | 0–5 | 6–15 | 16–50 | 51–90 | 91–140 | > 140 |
+| PM10 | 0–15 | 16–45 | 46–120 | 121–195 | 196–270 | > 270 |
+| O₃ | 0–60 | 61–100 | 101–120 | 121–160 | 161–180 | > 180 |
+| NO₂ | 0–10 | 11–25 | 26–60 | 61–100 | 101–150 | > 150 |
+| SO₂ | 0–20 | 21–40 | 41–125 | 126–190 | 191–275 | > 275 |
+
+Ein Wert exakt auf einer Bandgrenze gehört zur unteren Stufe: 5 µg/m³ PM2.5 sind noch
+`good`.
+
+**Kohlenmonoxid und Stickstoffmonoxid sind nicht Teil des EAQI.** Sie bekommen keinen
+Teilindex und tragen nichts zum Stationsindex bei; ihre Messsensoren bleiben unverändert.
+
+### Der Stationsindex kann `unknown` sein
+
+Der Stationsindex ist der schlechteste der Teilindizes – aber nur, wenn die
+Mindestdatenlage der EEA erfüllt ist: NO₂, O₃ und Feinstaub (PM2.5 oder PM10 oder beide)
+müssen vorliegen. Andernfalls steht der Index auf `unknown`. Er fällt **nicht** auf den
+besten verfügbaren Wert zurück, denn das würde die Lage beschönigen. Eine Station, die nur
+Ozon liefert, zeigt daher einen Ozon-Teilindex und einen unbekannten Stationsindex.
+
+Für Verkehrsstationen verlangt die EEA weniger, aber die Datenquelle veröffentlicht den
+Stationstyp nicht – deshalb gilt durchgängig die strengere Regel. Das Attribut
+`index_complete` macht das sichtbar.
+
+### Mittelungszeitraum – eine Näherung
+
+**Der EAQI ist auf Stundenmittelwerten definiert. Diese Integration verwendet
+Halbstundenmittelwerte (HMW)**, den frischesten Wert der Datenquelle. Der Index ist damit
+eine Näherung und kann vom offiziellen Wert abweichen – am ehesten bei kurzen Spitzen, die
+ein Stundenmittel stärker glättet als ein Halbstundenmittel.
+
+Jeder Index-Sensor weist das im Attribut `averaging_basis` aus. Tagesmittelwerte (TMW)
+werden für den Index bewusst nicht herangezogen.
+
+### Attribute
+
+Der Stationsindex und sein numerisches Gegenstück tragen:
+
+| Attribut | Bedeutung |
+|---|---|
+| `dominant_pollutant` | welcher Schadstoff die Stufe bestimmt |
+| `pollutants_used` | die eingeflossenen Schadstoffe |
+| `index_complete` | ob die Mindestdatenlage erfüllt ist |
+| `averaging_basis` | der tatsächlich verwendete Mittelungszeitraum |
+| `scheme` | Indexschema samt Revision |
+
+Die Teilindex-Sensoren tragen `averaging_basis` und `scheme`.
+
+> **Der Index ist kein Werkzeug zur Grenzwertprüfung.** Die EEA stellt ausdrücklich fest,
+> dass der Luftqualitätsindex kein Werkzeug zur Prüfung der Einhaltung von
+> Luftqualitätsgrenzwerten ist und dafür nicht verwendet werden darf. Für rechtsverbindliche
+> Grenzwerte gilt die offizielle Veröffentlichung des Umweltbundesamts.
+
+## Automationen
+
+Die Schadstoffsensoren tragen die üblichen Device Classes, deshalb funktionieren die Trigger
+und Bedingungen der Home-Assistant-Building-Block-Integration
+[Air Quality](https://www.home-assistant.io/integrations/air_quality/) direkt mit ihnen –
+ohne Hilfsentities. Schwellenwerte sind Geschmackssache und hängen vom Anlass ab, deshalb
+bringt diese Integration bewusst keine eigenen mit.
+
+Ozon-Informationsschwelle, 180 µg/m³:
+
+```yaml
+automation:
+  - alias: Ozon-Informationsschwelle erreicht
+    triggers:
+      - trigger: air_quality.ozone_crossed_threshold
+        target:
+          entity_id: sensor.graz_sud_tiergartenweg_ozon
+        options:
+          behavior: each
+          threshold:
+            type: above
+            value:
+              number: 180
+              unit_of_measurement: "μg/m³"
+    actions:
+      - action: notify.persistent_notification
+        data:
+          message: >-
+            Ozon über der Informationsschwelle von 180 µg/m³:
+            {{ states('sensor.graz_sud_tiergartenweg_ozon') }} µg/m³
+```
+
+> Die österreichische Informationsschwelle von 180 µg/m³ ist gesetzlich als
+> **Einstundenmittelwert** (MW1) definiert. Der Sensor oben ist ein Halbstundenmittelwert,
+> die Automation ist also eine Näherung und schlägt etwas früher und etwas öfter an als die
+> offizielle Bewertung. Sie ist ein Anlass, in die offiziellen Werte zu sehen, kein Ersatz
+> dafür.
+
+PM10 als Bedingung – der österreichische Grenzwert von 50 µg/m³ bezieht sich auf den
+Tagesmittelwert, deshalb ist hier der Tagesmittel-Sensor der richtige:
+
+```yaml
+automation:
+  - alias: Nur lüften, wenn PM10 niedrig ist
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.wohnzimmer_fenster
+        to: "on"
+    conditions:
+      - condition: air_quality.is_pm10_value
+        target:
+          entity_id: sensor.graz_don_bosco_feinstaub_pm10_tagesmittel
+        options:
+          behavior: any
+          threshold:
+            type: below
+            value:
+              number: 50
+    actions:
+      - action: notify.persistent_notification
+        data:
+          message: PM10-Tagesmittel unter 50 µg/m³ – guter Zeitpunkt zum Lüften.
+```
+
+Die Entity-IDs sind durch die eigenen zu ersetzen; sie entstehen aus dem Stationsnamen in
+der Sprache der eigenen Installation.
+
+Die Index-Entities lassen sich in gewöhnlichen Zustandstriggern verwenden, weil ihre
+Zustände stabil sind:
+
+```yaml
+automation:
+  - alias: Warnen, wenn die Luftqualität schlecht wird
+    triggers:
+      - trigger: state
+        entity_id: sensor.graz_sud_tiergartenweg_luftqualitatsindex
+        to:
+          - poor
+          - very_poor
+          - extremely_poor
+    actions:
+      - action: notify.persistent_notification
+        data:
+          message: >-
+            Luftqualität ist
+            {{ states('sensor.graz_sud_tiergartenweg_luftqualitatsindex') }},
+            bestimmt durch
+            {{ state_attr('sensor.graz_sud_tiergartenweg_luftqualitatsindex',
+                          'dominant_pollutant') }}.
+```
+
 ## Installation
 
 ### HACS (benutzerdefiniertes Repository)
@@ -121,6 +287,13 @@ ein Sensor pro Station, sonst liegen mehrere Marker exakt übereinander.
 - Anzeigename: `Luftqualität Österreich`
 - Repository: `ha-austrian-air-quality`
 - Jeder Push wird von hassfest und der HACS-Action geprüft (siehe `.github/workflows/validate.yml`)
+
+`eaqi.py` enthält die Indexklassifikation und importiert bewusst nichts aus Home Assistant.
+Die Unit-Tests laufen deshalb mit einem nackten Python ohne Zusatzpakete:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 Siehe `custom_components/austrian_air_quality/` für den Quellcode.
 
