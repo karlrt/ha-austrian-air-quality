@@ -119,11 +119,6 @@ Der Stationsindex und sein numerisches Gegenstück tragen:
 
 Die Teilindex-Sensoren tragen `averaging_basis` und `scheme`.
 
-Ein `color`-Attribut gibt es nicht. Home Assistant kennt für `sensor`-Entities überhaupt
-kein Farb-Attribut – gefärbt wird in der Dashboard-Karte, nicht an der Entity –, ein
-solches Attribut wäre also eine Angabe, die von sich aus niemand ausliest. Die Indexstufen
-haben stattdessen zustandsabhängige Icons.
-
 > **Der Index ist kein Werkzeug zur Grenzwertprüfung.** Die EEA stellt ausdrücklich fest,
 > dass der Luftqualitätsindex kein Werkzeug zur Prüfung der Einhaltung von
 > Luftqualitätsgrenzwerten ist und dafür nicht verwendet werden darf. Für rechtsverbindliche
