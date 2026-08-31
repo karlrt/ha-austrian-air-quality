@@ -24,6 +24,19 @@ ATTR_MEASURED_AT: Final = "measured_at"
 ATTR_ALTITUDE: Final = "altitude"
 ATTR_VALUE_CLASS: Final = "value_class"
 
+# Attributes of the EAQI index sensors.
+ATTR_DOMINANT_POLLUTANT: Final = "dominant_pollutant"
+ATTR_POLLUTANTS_USED: Final = "pollutants_used"
+ATTR_INDEX_COMPLETE: Final = "index_complete"
+ATTR_AVERAGING_BASIS: Final = "averaging_basis"
+ATTR_SCHEME: Final = "scheme"
+
+# The EAQI is defined on hourly means, but the source publishes half-hourly
+# means as its freshest figure, so that is what the index is built on. Every
+# index sensor carries this so the approximation is visible on the entity
+# itself and not only in the documentation.
+AVERAGING_BASIS: Final = "HMW (approximation of hourly mean)"
+
 DEFAULT_SCAN_INTERVAL: Final = timedelta(minutes=30)
 
 # The config flow already downloads everything a station reports in order to
@@ -88,6 +101,20 @@ def measurement_key(pollutant: str, meantype: str) -> str:
     if meantype == MEANTYPE_CURRENT:
         return pollutant
     return f"{pollutant}_{meantype}"
+
+
+# Entity keys of the EAQI sensors. The sub-index of a pollutant is that
+# pollutant's key plus this suffix, which cannot collide with an averaging
+# period key because no meantype is called "index".
+INDEX_SUFFIX: Final = "_index"
+
+KEY_STATION_INDEX: Final = "air_quality_index"
+KEY_STATION_INDEX_LEVEL: Final = "air_quality_index_level"
+
+
+def index_key(pollutant: str) -> str:
+    """Entity key of the sub-index of one pollutant."""
+    return f"{pollutant}{INDEX_SUFFIX}"
 
 
 # Short chemical labels for the config flow. Deliberately language neutral so

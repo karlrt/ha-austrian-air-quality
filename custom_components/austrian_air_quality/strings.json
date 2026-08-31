@@ -93,6 +93,75 @@
       "co_daily": {
         "name": "Carbon monoxide daily mean"
       },
+      "air_quality_index": {
+        "name": "Air quality index",
+        "state": {
+          "good": "Good",
+          "fair": "Fair",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "very_poor": "Very poor",
+          "extremely_poor": "Extremely poor"
+        }
+      },
+      "air_quality_index_level": {
+        "name": "Air quality index level"
+      },
+      "pm25_index": {
+        "name": "PM2.5 index",
+        "state": {
+          "good": "Good",
+          "fair": "Fair",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "very_poor": "Very poor",
+          "extremely_poor": "Extremely poor"
+        }
+      },
+      "pm10_index": {
+        "name": "PM10 index",
+        "state": {
+          "good": "Good",
+          "fair": "Fair",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "very_poor": "Very poor",
+          "extremely_poor": "Extremely poor"
+        }
+      },
+      "o3_index": {
+        "name": "Ozone index",
+        "state": {
+          "good": "Good",
+          "fair": "Fair",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "very_poor": "Very poor",
+          "extremely_poor": "Extremely poor"
+        }
+      },
+      "no2_index": {
+        "name": "Nitrogen dioxide index",
+        "state": {
+          "good": "Good",
+          "fair": "Fair",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "very_poor": "Very poor",
+          "extremely_poor": "Extremely poor"
+        }
+      },
+      "so2_index": {
+        "name": "Sulphur dioxide index",
+        "state": {
+          "good": "Good",
+          "fair": "Fair",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "very_poor": "Very poor",
+          "extremely_poor": "Extremely poor"
+        }
+      },
       "station_location": {
         "name": "Coordinates"
       }

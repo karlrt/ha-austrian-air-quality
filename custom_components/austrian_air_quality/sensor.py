@@ -22,18 +22,28 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import eaqi
 from .api import AustrianAirQualityMeasurement
 from .const import (
     ATTR_ALTITUDE,
+    ATTR_AVERAGING_BASIS,
+    ATTR_DOMINANT_POLLUTANT,
+    ATTR_INDEX_COMPLETE,
     ATTR_LOCATION,
     ATTR_MEASURED_AT,
     ATTR_OWNER,
+    ATTR_POLLUTANTS_USED,
+    ATTR_SCHEME,
     ATTR_STATION_ID,
     ATTR_VALUE_CLASS,
     ATTRIBUTION,
+    AVERAGING_BASIS,
     CONF_STATION_NAME,
     DOMAIN,
+    KEY_STATION_INDEX,
+    KEY_STATION_INDEX_LEVEL,
     MANUFACTURER,
+    MEANTYPE_CURRENT,
     MEANTYPES,
     POLLUTANT_CO,
     POLLUTANT_NO,
@@ -42,6 +52,7 @@ from .const import (
     POLLUTANT_PM10,
     POLLUTANT_PM25,
     POLLUTANT_SO2,
+    index_key,
     measurement_key,
 )
 from .coordinator import AustrianAirQualityConfigEntry, AustrianAirQualityCoordinator
@@ -124,6 +135,34 @@ SENSOR_DESCRIPTIONS: tuple[AustrianAirQualitySensorDescription, ...] = tuple(
     for meantype in MEANTYPES
 )
 
+# One sub-index per pollutant the EAQI is defined for. CO and NO are absent
+# from eaqi.EAQI_POLLUTANTS on purpose and therefore get no index sensor.
+INDEX_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = tuple(
+    SensorEntityDescription(
+        key=index_key(pollutant),
+        translation_key=index_key(pollutant),
+        device_class=SensorDeviceClass.ENUM,
+        options=list(eaqi.LEVELS),
+    )
+    for pollutant in eaqi.EAQI_POLLUTANTS
+)
+
+STATION_INDEX_DESCRIPTION = SensorEntityDescription(
+    key=KEY_STATION_INDEX,
+    translation_key=KEY_STATION_INDEX,
+    device_class=SensorDeviceClass.ENUM,
+    options=list(eaqi.LEVELS),
+)
+
+# The machine readable twin of the station index. SensorDeviceClass.AQI has no
+# unit and only allows the measurement state class.
+STATION_INDEX_LEVEL_DESCRIPTION = SensorEntityDescription(
+    key=KEY_STATION_INDEX_LEVEL,
+    translation_key=KEY_STATION_INDEX_LEVEL,
+    device_class=SensorDeviceClass.AQI,
+    state_class=SensorStateClass.MEASUREMENT,
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -139,6 +178,32 @@ async def async_setup_entry(
         for description in SENSOR_DESCRIPTIONS
         if description.key in available
     ]
+
+    # A sub-index for every index pollutant the station currently reports, on
+    # the half-hourly mean. A station that reports none of the five gets no
+    # index entities at all rather than a permanently unknown one.
+    index_pollutants = [
+        pollutant
+        for pollutant in eaqi.EAQI_POLLUTANTS
+        if measurement_key(pollutant, MEANTYPE_CURRENT) in available
+    ]
+    entities.extend(
+        AustrianAirQualityIndexSensor(coordinator, entry, description, pollutant)
+        for description, pollutant in zip(INDEX_DESCRIPTIONS, eaqi.EAQI_POLLUTANTS)
+        if pollutant in index_pollutants
+    )
+    if index_pollutants:
+        entities.append(
+            AustrianAirQualityStationIndexSensor(
+                coordinator, entry, STATION_INDEX_DESCRIPTION
+            )
+        )
+        entities.append(
+            AustrianAirQualityStationIndexLevelSensor(
+                coordinator, entry, STATION_INDEX_LEVEL_DESCRIPTION
+            )
+        )
+
     if coordinator.station_coordinates != (None, None):
         entities.append(AustrianAirQualityLocationSensor(coordinator, entry))
 
@@ -232,6 +297,101 @@ class AustrianAirQualitySensor(AustrianAirQualityEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
         return self.coordinator.data.measurements.get(self.entity_description.key)
+
+
+class AustrianAirQualityIndexBase(AustrianAirQualityEntity, SensorEntity):
+    """Shared plumbing of the EAQI entities.
+
+    Unlike the pollutant sensors these stay available while the station is
+    reachable: "the index cannot be determined" is a result in its own right
+    and is reported as an unknown state, not as an unavailable entity.
+    """
+
+    def __init__(
+        self,
+        coordinator: AustrianAirQualityCoordinator,
+        entry: AustrianAirQualityConfigEntry,
+        description: SensorEntityDescription,
+    ) -> None:
+        """Initialize sensor."""
+        super().__init__(coordinator, entry)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.station_id}_{description.key}"
+
+    @property
+    def _index_values(self) -> dict[str, float | None]:
+        """Half-hourly mean of every index pollutant the station reports."""
+        station = self.coordinator.data
+        if station is None:
+            return {}
+        values: dict[str, float | None] = {}
+        for pollutant in eaqi.EAQI_POLLUTANTS:
+            measurement = station.measurements.get(
+                measurement_key(pollutant, MEANTYPE_CURRENT)
+            )
+            if measurement is not None:
+                values[pollutant] = measurement.value
+        return values
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Station metadata plus how the index was built."""
+        attributes = super().extra_state_attributes
+        attributes[ATTR_AVERAGING_BASIS] = AVERAGING_BASIS
+        attributes[ATTR_SCHEME] = eaqi.SCHEME
+        return attributes
+
+
+class AustrianAirQualityIndexSensor(AustrianAirQualityIndexBase):
+    """The EAQI sub-index of a single pollutant."""
+
+    def __init__(
+        self,
+        coordinator: AustrianAirQualityCoordinator,
+        entry: AustrianAirQualityConfigEntry,
+        description: SensorEntityDescription,
+        pollutant: str,
+    ) -> None:
+        """Initialize sensor."""
+        super().__init__(coordinator, entry, description)
+        self._pollutant = pollutant
+
+    @property
+    def native_value(self) -> str | None:
+        """Index level of this pollutant, or None while it has no value."""
+        return eaqi.index_for(self._pollutant, self._index_values.get(self._pollutant))
+
+
+class AustrianAirQualityStationIndexSensor(AustrianAirQualityIndexBase):
+    """The EAQI of the station: the worst of its sub-indices."""
+
+    @property
+    def native_value(self) -> str | None:
+        """Index level, or None while the minimum data requirement is unmet."""
+        return eaqi.station_index(self._index_values).level
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """What went into the index and whether it is complete."""
+        attributes = super().extra_state_attributes
+        result = eaqi.station_index(self._index_values)
+        attributes[ATTR_DOMINANT_POLLUTANT] = result.dominant_pollutant
+        attributes[ATTR_POLLUTANTS_USED] = list(result.pollutants_used)
+        attributes[ATTR_INDEX_COMPLETE] = result.complete
+        return attributes
+
+
+class AustrianAirQualityStationIndexLevelSensor(AustrianAirQualityStationIndexSensor):
+    """The station index as a number from 1 to 6, for graphs and comparisons.
+
+    Deliberately unknown whenever the enum sensor is unknown; there is no
+    fallback to 0, which would read as a level better than "good".
+    """
+
+    @property
+    def native_value(self) -> int | None:
+        """Numeric index level, or None while there is no level."""
+        return eaqi.station_index(self._index_values).number
 
 
 class AustrianAirQualityLocationSensor(AustrianAirQualityEntity, SensorEntity):

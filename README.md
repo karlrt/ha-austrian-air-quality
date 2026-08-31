@@ -49,6 +49,173 @@ sensor name in the language of the Home Assistant installation, for example
 `sensor.graz_don_bosco_particulate_matter_pm10` and
 `sensor.graz_don_bosco_particulate_matter_pm10_daily_mean`.
 
+## European Air Quality Index (EAQI)
+
+On top of the raw measurements, every station is classified according to the **European
+Air Quality Index** of the European Environment Agency. Three kinds of entity are added:
+
+| Entity | State | Content |
+|---|---|---|
+| *Ozone index*, *PM10 index*, … | `good` … `extremely_poor` | Sub-index of one pollutant |
+| *Air quality index* | `good` … `extremely_poor` | Station index: the worst sub-index |
+| *Air quality index level* | `1` … `6` | The same, as a number for graphs and comparisons |
+
+The states are English and stable, so automations keep working regardless of the
+interface language; the display names are translated.
+
+### Bands
+
+Concentrations in µg/m³. Source: European Environment Agency, *European Air Quality
+Index*, <https://airindex.eea.europa.eu/AQI/index.html>, band table as revised in 2024,
+retrieved 2026-08-31.
+
+| Pollutant | good | fair | moderate | poor | very poor | extremely poor |
+|---|---|---|---|---|---|---|
+| PM2.5 | 0–5 | 6–15 | 16–50 | 51–90 | 91–140 | > 140 |
+| PM10 | 0–15 | 16–45 | 46–120 | 121–195 | 196–270 | > 270 |
+| O₃ | 0–60 | 61–100 | 101–120 | 121–160 | 161–180 | > 180 |
+| NO₂ | 0–10 | 11–25 | 26–60 | 61–100 | 101–150 | > 150 |
+| SO₂ | 0–20 | 21–40 | 41–125 | 126–190 | 191–275 | > 275 |
+
+A value sitting exactly on a band limit belongs to the lower level: 5 µg/m³ of PM2.5 is
+still `good`.
+
+**Carbon monoxide and nitrogen monoxide are not part of the EAQI.** They get no
+sub-index and contribute nothing to the station index; their measurement sensors are
+unaffected.
+
+### The station index can be unknown
+
+The station index is the worst of the sub-indices – but only once the EEA minimum data
+requirement is met: NO₂, O₃ and particulate matter (PM2.5 or PM10 or both) all have to be
+present. If they are not, the index is `unknown`. It never falls back to the best
+available value, which would understate the situation. A station reporting ozone only
+therefore shows an ozone sub-index and an unknown station index.
+
+The EEA asks for less at traffic stations, but the data source does not publish the
+station type, so the stricter rule is applied throughout. The `index_complete` attribute
+makes this visible.
+
+### Averaging period – an approximation
+
+**The EAQI is defined on hourly means. This integration uses half-hourly means (HMW),**
+the freshest figure the source publishes. The index is therefore an approximation, and it
+can differ from the official figure – most noticeably during short peaks, which an
+hourly mean smooths out more than a half-hourly one.
+
+Every index sensor states this in its `averaging_basis` attribute. Daily means (TMW) are
+deliberately not used for the index.
+
+### Attributes
+
+The station index and its numeric twin carry:
+
+| Attribute | Meaning |
+|---|---|
+| `dominant_pollutant` | Which pollutant determines the level |
+| `pollutants_used` | The pollutants that went into the index |
+| `index_complete` | Whether the minimum data requirement is met |
+| `averaging_basis` | The averaging period actually used |
+| `scheme` | The index scheme and its revision |
+
+The sub-index sensors carry `averaging_basis` and `scheme`.
+
+There is no `color` attribute: the six official EEA colour values could not be sourced in
+a citable form, and inventing them would have been worse than leaving them out. The
+index levels do have state-dependent icons.
+
+> **The index is not a compliance tool.** The EEA states plainly that the air quality
+> index is not a tool for checking compliance with air quality standards and cannot be
+> used for that purpose. For legal limit values, refer to the official publication of the
+> Federal Environment Agency Austria.
+
+## Automations
+
+The pollutant sensors carry the standard device classes, so the triggers and conditions
+of the Home Assistant [Air Quality](https://www.home-assistant.io/integrations/air_quality/)
+building block work with them directly – no helper entities needed. Thresholds are a
+matter of taste and local rules, so this integration deliberately ships none of its own.
+
+Ozone information threshold, 180 µg/m³:
+
+```yaml
+automation:
+  - alias: Ozone information threshold reached
+    triggers:
+      - trigger: air_quality.ozone_crossed_threshold
+        target:
+          entity_id: sensor.graz_sud_tiergartenweg_ozone
+        options:
+          behavior: each
+          threshold:
+            type: above
+            value:
+              number: 180
+              unit_of_measurement: "μg/m³"
+    actions:
+      - action: notify.persistent_notification
+        data:
+          message: >-
+            Ozone above the information threshold of 180 µg/m³:
+            {{ states('sensor.graz_sud_tiergartenweg_ozone') }} µg/m³
+```
+
+> The Austrian information threshold of 180 µg/m³ is legally defined as a **one-hour
+> mean** (MW1). The sensor above is a half-hourly mean, so this automation is an
+> approximation and will react a little earlier and a little more often than the official
+> assessment. It is a hint to look at the official figures, not a substitute for them.
+
+PM10 as a condition – the Austrian daily limit value is 50 µg/m³ as a daily mean, so the
+daily mean sensor is the right one here:
+
+```yaml
+automation:
+  - alias: Air out only while PM10 is low
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.living_room_window
+        to: "on"
+    conditions:
+      - condition: air_quality.is_pm10_value
+        target:
+          entity_id: sensor.graz_don_bosco_particulate_matter_pm10_daily_mean
+        options:
+          behavior: any
+          threshold:
+            type: below
+            value:
+              number: 50
+    actions:
+      - action: notify.persistent_notification
+        data:
+          message: PM10 daily mean is below 50 µg/m³ – good time to air out.
+```
+
+Replace the entity IDs with your own; they are built from the station name in the
+language of your installation.
+
+The index entities work in ordinary state triggers, since their states are stable:
+
+```yaml
+automation:
+  - alias: Warn when air quality gets poor
+    triggers:
+      - trigger: state
+        entity_id: sensor.graz_sud_tiergartenweg_air_quality_index
+        to:
+          - poor
+          - very_poor
+          - extremely_poor
+    actions:
+      - action: notify.persistent_notification
+        data:
+          message: >-
+            Air quality is {{ states('sensor.graz_sud_tiergartenweg_air_quality_index') }},
+            driven by
+            {{ state_attr('sensor.graz_sud_tiergartenweg_air_quality_index',
+                          'dominant_pollutant') }}.
+```
+
 ## Installation
 
 ### HACS (Custom Repository)
@@ -122,6 +289,13 @@ otherwise several markers end up on exactly the same spot.
 - Display name: `Luftqualität Österreich`
 - Repository: `ha-austrian-air-quality`
 - Every push is checked by hassfest and the HACS action (see `.github/workflows/validate.yml`)
+
+`eaqi.py` holds the index classification and deliberately imports nothing from Home
+Assistant, so its unit tests run against a bare Python interpreter with no extra packages:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 See `custom_components/austrian_air_quality/` for the source code.
 

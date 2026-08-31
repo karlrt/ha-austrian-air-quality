@@ -14,3 +14,6 @@ build/
 config/
 .DS_Store
 Thumbs.db
+
+# Projektinterne Notizen, gehoeren nicht ins Repository
+claude/

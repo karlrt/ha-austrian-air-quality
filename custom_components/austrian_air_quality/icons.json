@@ -3,6 +3,75 @@
     "sensor": {
       "station_location": {
         "default": "mdi:map-marker"
+      },
+      "air_quality_index": {
+        "default": "mdi:air-filter",
+        "state": {
+          "good": "mdi:gauge-empty",
+          "fair": "mdi:gauge-low",
+          "moderate": "mdi:gauge",
+          "poor": "mdi:gauge-full",
+          "very_poor": "mdi:alert-outline",
+          "extremely_poor": "mdi:alert-octagon-outline"
+        }
+      },
+      "air_quality_index_level": {
+        "default": "mdi:gauge"
+      },
+      "pm25_index": {
+        "default": "mdi:air-filter",
+        "state": {
+          "good": "mdi:gauge-empty",
+          "fair": "mdi:gauge-low",
+          "moderate": "mdi:gauge",
+          "poor": "mdi:gauge-full",
+          "very_poor": "mdi:alert-outline",
+          "extremely_poor": "mdi:alert-octagon-outline"
+        }
+      },
+      "pm10_index": {
+        "default": "mdi:air-filter",
+        "state": {
+          "good": "mdi:gauge-empty",
+          "fair": "mdi:gauge-low",
+          "moderate": "mdi:gauge",
+          "poor": "mdi:gauge-full",
+          "very_poor": "mdi:alert-outline",
+          "extremely_poor": "mdi:alert-octagon-outline"
+        }
+      },
+      "o3_index": {
+        "default": "mdi:air-filter",
+        "state": {
+          "good": "mdi:gauge-empty",
+          "fair": "mdi:gauge-low",
+          "moderate": "mdi:gauge",
+          "poor": "mdi:gauge-full",
+          "very_poor": "mdi:alert-outline",
+          "extremely_poor": "mdi:alert-octagon-outline"
+        }
+      },
+      "no2_index": {
+        "default": "mdi:air-filter",
+        "state": {
+          "good": "mdi:gauge-empty",
+          "fair": "mdi:gauge-low",
+          "moderate": "mdi:gauge",
+          "poor": "mdi:gauge-full",
+          "very_poor": "mdi:alert-outline",
+          "extremely_poor": "mdi:alert-octagon-outline"
+        }
+      },
+      "so2_index": {
+        "default": "mdi:air-filter",
+        "state": {
+          "good": "mdi:gauge-empty",
+          "fair": "mdi:gauge-low",
+          "moderate": "mdi:gauge",
+          "poor": "mdi:gauge-full",
+          "very_poor": "mdi:alert-outline",
+          "extremely_poor": "mdi:alert-octagon-outline"
+        }
       }
     }
   }
