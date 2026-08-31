@@ -120,9 +120,10 @@ The station index and its numeric twin carry:
 
 The sub-index sensors carry `averaging_basis` and `scheme`.
 
-There is no `color` attribute: the six official EEA colour values could not be sourced in
-a citable form, and inventing them would have been worse than leaving them out. The
-index levels do have state-dependent icons.
+There is no `color` attribute. Home Assistant has no colour attribute for `sensor`
+entities at all – colouring happens in the dashboard card, not on the entity – so such an
+attribute would be metadata that nothing reads on its own. The index levels do have
+state-dependent icons.
 
 > **The index is not a compliance tool.** The EEA states plainly that the air quality
 > index is not a tool for checking compliance with air quality standards and cannot be
