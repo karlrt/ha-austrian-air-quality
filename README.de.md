@@ -24,6 +24,12 @@ Tagesmittelwert (TMW), macht 14 Abfragen pro Station und Aktualisierung; jeder S
 Zeitraum wird einzeln und mit kurzer Pause dazwischen abgefragt, ein einzelner Fehlschlag legt
 die Station nicht lahm.
 
+Die Koordinierungsstelle Umweltinformation des Umweltbundesamts hat auf Anfrage bestätigt
+(August 2026), dass dieser Endpunkt bei entsprechender Nennung der Datenquelle genutzt werden
+darf, und das von der Integration verwendete Standardintervall von 30 Minuten empfohlen. Eine
+andere dokumentierte Schnittstelle gibt es derzeit nicht; ein neues, dokumentiertes Service
+wird erwogen.
+
 Benötigt Home Assistant 2026.8.0 oder neuer. Keine zusätzlichen Python-Abhängigkeiten.
 
 ## Messgrößen

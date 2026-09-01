@@ -2,12 +2,12 @@
 
 [![hacs][hacs-badge]][hacs]
 
-Home Assistant integration for air quality measurements in Austria (data source: Federal Environment Agency Austria).
+Home Assistant integration for air quality measurements in Austria (data source: Umweltbundesamt, Environment Agency Austria).
 
 > **Unofficial project.** This integration is developed independently and is not affiliated with
-> the Federal Environment Agency Austria (Umweltbundesamt). There is no warranty for availability,
+> the Umweltbundesamt (Environment Agency Austria). There is no warranty for availability,
 > timeliness, or accuracy of the data. For legally binding information, refer exclusively to the
-> official publication of the Federal Environment Agency Austria.
+> official publication of the Umweltbundesamt.
 
 *Deutsche Fassung: [README.de.md](README.de.md)*
 
@@ -23,6 +23,11 @@ averaging periods are read, the half-hourly mean (HMW) and the daily mean (TMW),
 makes 14 requests per station and update; every pollutant and period is requested
 separately, with a short delay in between, and a single failing request does not take the
 whole station down.
+
+The Umweltbundesamt's Coordination Office Environmental Information confirmed on request
+(August 2026) that this endpoint may be used with attribution of the data source, and
+recommended the standard 30-minute interval the integration uses. There is currently no
+other documented interface; a new documented service is under consideration.
 
 Requires Home Assistant 2026.8.0 or newer. No additional Python dependencies.
 
@@ -123,7 +128,7 @@ The sub-index sensors carry `averaging_basis` and `scheme`.
 > **The index is not a compliance tool.** The EEA states plainly that the air quality
 > index is not a tool for checking compliance with air quality standards and cannot be
 > used for that purpose. For legal limit values, refer to the official publication of the
-> Federal Environment Agency Austria.
+> Umweltbundesamt.
 
 ## Automations
 

@@ -7,8 +7,10 @@ from typing import Final
 
 DOMAIN: Final = "austrian_air_quality"
 
-MANUFACTURER: Final = "Austrian Environment Agency"
-ATTRIBUTION: Final = "Data: Federal Environment Agency Austria (unofficial integration)"
+MANUFACTURER: Final = "Umweltbundesamt"
+ATTRIBUTION: Final = (
+    "Data: Umweltbundesamt (Environment Agency Austria), luft.umweltbundesamt.at"
+)
 
 CONF_STATION_ID: Final = "station_id"
 CONF_STATION_NAME: Final = "station_name"

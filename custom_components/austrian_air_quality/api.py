@@ -1,4 +1,4 @@
-"""Client for the JSON interface of the Austrian Environment Agency's air quality map.
+"""Client for the JSON interface of the Umweltbundesamt air quality map.
 
 Note: This is an undocumented interface used by the public map application
 at luft.umweltbundesamt.at. It may change without notice.
