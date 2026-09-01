@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  version-match:
+    name: manifest version matches tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compare manifest version with release tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(python -c "import json;print(json.load(open('custom_components/austrian_air_quality/manifest.json'))['version'])")
+          echo "tag=$tag manifest=$manifest"
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::Release tag $GITHUB_REF_NAME does not match manifest version $manifest."
+            echo "::error::Bump \"version\" in custom_components/austrian_air_quality/manifest.json before tagging."
+            exit 1
+          fi

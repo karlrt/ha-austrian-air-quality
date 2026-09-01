@@ -225,10 +225,20 @@ automation:
 
 ### HACS (benutzerdefiniertes Repository)
 
+Die Integration ist (noch) nicht Teil des HACS-Standardkatalogs, das Repository muss daher
+einmalig von Hand hinzugefügt werden. Ein Klick erledigt das und öffnet direkt die
+Downloadseite:
+
+[![Diese Home-Assistant-Instanz öffnen und das Repository im Home Assistant Community Store anzeigen.][my-badge]][my-hacs]
+
+Oder manuell:
+
 1. HACS öffnen → Integrationen → Menü (⋮) → *Benutzerdefinierte Repositories*
 2. `https://github.com/karlrt/ha-austrian-air-quality` als Kategorie *Integration* hinzufügen
 3. „Luftqualität Österreich" installieren, Home Assistant neu starten
 4. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Luftqualität Österreich*
+
+HACS bietet ausschließlich getaggte Releases an, nicht den Stand des Standardbranches.
 
 ### Manuell
 
@@ -293,6 +303,8 @@ ein Sensor pro Station, sonst liegen mehrere Marker exakt übereinander.
 - Anzeigename: `Luftqualität Österreich`
 - Repository: `ha-austrian-air-quality`
 - Jeder Push wird von hassfest und der HACS-Action geprüft (siehe `.github/workflows/validate.yml`)
+- Vor einem Release `version` in der `manifest.json` erhöhen; `.github/workflows/release.yml`
+  lässt das Release fehlschlagen, wenn Tag und Manifest-Version auseinanderlaufen
 
 `eaqi.py` enthält die Indexklassifikation und importiert bewusst nichts aus Home Assistant.
 Die Unit-Tests laufen deshalb mit einem nackten Python ohne Zusatzpakete:
@@ -309,3 +321,5 @@ Apache-2.0 – siehe [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
+[my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=karlrt&repository=ha-austrian-air-quality&category=integration
+[my-badge]: https://my.home-assistant.io/badges/hacs_repository.svg

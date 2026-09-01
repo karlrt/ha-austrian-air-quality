@@ -221,10 +221,19 @@ automation:
 
 ### HACS (Custom Repository)
 
+The integration is not (yet) part of the HACS default store, so the repository has to be
+added once by hand. One click does that and opens the download page directly:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-badge]][my-hacs]
+
+Or manually:
+
 1. Open HACS → Integrations → Menu (⋮) → *Custom repositories*
 2. Add `https://github.com/karlrt/ha-austrian-air-quality` as category *Integration*
 3. Install "Luftqualität Österreich", restart Home Assistant
 4. *Settings → Devices & Services → Create Integration → Luftqualität Österreich*
+
+HACS only offers tagged releases, not the state of the default branch.
 
 ### Manual
 
@@ -290,6 +299,8 @@ otherwise several markers end up on exactly the same spot.
 - Display name: `Luftqualität Österreich`
 - Repository: `ha-austrian-air-quality`
 - Every push is checked by hassfest and the HACS action (see `.github/workflows/validate.yml`)
+- Before tagging a release, bump `version` in `manifest.json`; `.github/workflows/release.yml`
+  fails the release if tag and manifest version disagree
 
 `eaqi.py` holds the index classification and deliberately imports nothing from Home
 Assistant, so its unit tests run against a bare Python interpreter with no extra packages:
@@ -306,3 +317,5 @@ Apache-2.0 – see [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
+[my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=karlrt&repository=ha-austrian-air-quality&category=integration
+[my-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
