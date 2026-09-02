@@ -142,12 +142,22 @@ def default_options(
         for key, pollutant in zip(INDEX_KEYS, eaqi.EAQI_POLLUTANTS)
         if key in have or measurement_key(pollutant, MEANTYPE_CURRENT) in measurements
     )
+    index_pollutants = tuple(
+        pollutant
+        for key, pollutant in zip(INDEX_KEYS, eaqi.EAQI_POLLUTANTS)
+        if key in indexes
+    )
     return {
         OPT_MEASUREMENTS: list(measurements),
-        # As before: the station index is offered as soon as a single index
-        # pollutant is there. Whether it can ever reach a level is a different
-        # question, and one the minimum data requirement answers at runtime.
-        OPT_STATION_INDEX: bool(indexes) or KEY_STATION_INDEX in have,
+        # The station index is preselected only where it can actually reach a
+        # level: either coverage rule will do, but a single index pollutant is
+        # not enough for either. Ticking it on such a station used to produce
+        # two entities that stay unknown for good. It stays one click away in
+        # the forms, which offer it either way, and an installation that
+        # already has the entity keeps it - unticking it here would drop an
+        # entity and its history over a default.
+        OPT_STATION_INDEX: eaqi.has_minimum_data(index_pollutants)
+        or KEY_STATION_INDEX in have,
         OPT_INDEXES: list(indexes),
         OPT_LOCATION: True,
     }

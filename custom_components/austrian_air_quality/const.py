@@ -30,6 +30,7 @@ ATTR_VALUE_CLASS: Final = "value_class"
 ATTR_DOMINANT_POLLUTANT: Final = "dominant_pollutant"
 ATTR_POLLUTANTS_USED: Final = "pollutants_used"
 ATTR_INDEX_COMPLETE: Final = "index_complete"
+ATTR_INDEX_BASIS: Final = "index_basis"
 ATTR_AVERAGING_BASIS: Final = "averaging_basis"
 ATTR_SCHEME: Final = "scheme"
 

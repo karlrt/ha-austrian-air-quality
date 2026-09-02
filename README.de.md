@@ -95,17 +95,35 @@ Ein Wert exakt auf einer Bandgrenze gehört zur unteren Stufe: 5 µg/m³ PM2.5 s
 **Kohlenmonoxid und Stickstoffmonoxid sind nicht Teil des EAQI.** Sie bekommen keinen
 Teilindex und tragen nichts zum Stationsindex bei; ihre Messsensoren bleiben unverändert.
 
-### Der Stationsindex kann `unknown` sein
+### Der Stationsindex und seine zwei Regeln
 
-Der Stationsindex ist der schlechteste der Teilindizes – aber nur, wenn die
-Mindestdatenlage der EEA erfüllt ist: NO₂, O₃ und Feinstaub (PM2.5 oder PM10 oder beide)
-müssen vorliegen. Andernfalls steht der Index auf `unknown`. Er fällt **nicht** auf den
-besten verfügbaren Wert zurück, denn das würde die Lage beschönigen. Eine Station, die nur
-Ozon liefert, zeigt daher einen Ozon-Teilindex und einen unbekannten Stationsindex.
+Der Stationsindex ist der schlechteste der Teilindizes – aber nur, wenn eine der beiden
+Mindestdatenregeln der EEA erfüllt ist:
 
-Für Verkehrsstationen verlangt die EEA weniger, aber die Datenquelle veröffentlicht den
-Stationstyp nicht – deshalb gilt durchgängig die strengere Regel. Das Attribut
-`index_complete` macht das sichtbar.
+| Regel | braucht | `index_basis` | `index_complete` |
+|---|---|---|---|
+| Standard (Hintergrund- und Industriestationen) | NO₂, O₃ **und** Feinstaub | `standard` | `true` |
+| Verkehrsstationen | NO₂ **und** Feinstaub | `traffic_rule` | `false` |
+
+Feinstaub heißt PM2.5 oder PM10 oder beide. Ohne NO₂ oder ohne Feinstaub greift keine der
+beiden Regeln: Diese Stationen bekommen keinen Stationsindex, der Wert bleibt `unknown`. Er
+fällt **nicht** auf den besten verfügbaren Teilindex zurück, denn das würde die Lage
+beschönigen. Eine Station, die nur Ozon liefert, zeigt daher einen Ozon-Teilindex und einen
+unbekannten Stationsindex.
+
+**Eine Station ohne Ozon wird an der Verkehrsstationsregel gemessen.** Die Datenquelle
+veröffentlicht den Stationstyp nicht – eine Verkehrsstation ist von einer Hintergrundstation,
+die schlicht kein Ozon misst, nicht zu unterscheiden. Beide nach der milderen Regel zu
+bewerten ist eine bewusste Abwägung: Die vielen Stationen ohne Ozonmessung bekommen dadurch
+überhaupt einen Index, und an einer Hintergrundstation kann er im Sommer zu optimistisch
+ausfallen, weil Ozon dort oft der Schadstoff wäre, der die Stufe bestimmt hätte. Lies
+`index_basis`, bevor du dich auf eine Stufe verlässt, und vergleiche Stufen nur innerhalb
+derselben Basis – `traffic_rule` und `standard` sind nicht dieselbe Skala.
+
+Erfüllt eine Station keine der beiden Regeln, ist der Stationsindex beim Einrichten nicht
+vorausgewählt – zwei Entitäten, die nie aus `unknown` herauskommen, sind weniger wert als ihr
+Fehlen. Anhaken lässt er sich im Formular trotzdem, und ein Eintrag, der die Entität schon
+hat, behält sie.
 
 ### Mittelungszeitraum – eine Näherung
 
@@ -126,7 +144,8 @@ Der Stationsindex und sein numerisches Gegenstück tragen:
 |---|---|
 | `dominant_pollutant` | welcher Schadstoff die Stufe bestimmt |
 | `pollutants_used` | die eingeflossenen Schadstoffe |
-| `index_complete` | ob die Mindestdatenlage erfüllt ist |
+| `index_basis` | nach welcher Regel die Stufe gebildet wurde: `standard` oder `traffic_rule` |
+| `index_complete` | ob alle drei Gruppen der Standardregel vorlagen |
 | `averaging_basis` | der tatsächlich verwendete Mittelungszeitraum |
 | `scheme` | Indexschema samt Revision |
 
@@ -298,10 +317,10 @@ erhalten, beim Wiederanhaken kommen sie mit derselben Entity-ID und ihrer Histor
 Wer sie wirklich loswerden will, löscht sie in Home Assistant selbst – dann ist auch die
 Historie weg.
 
-**Der Stationsindex braucht mehr als seine eigene Entität.** Er wird aus NO₂, O₃ und
-Feinstaub gebildet, und zwar aus allen dreien gleichzeitig. Solange er ausgewählt ist, werden
-die dafür nötigen Werte abgefragt, auch wenn die zugehörigen Messwert-Sensoren abgewählt
-sind. Ein abgewählter Messwert kostet also seine Entität, aber nie stillschweigend den Index.
+**Der Stationsindex braucht mehr als seine eigene Entität.** Er wird mindestens aus NO₂ und
+Feinstaub gebildet, und zusätzlich aus Ozon, wo die Station es meldet. Solange er ausgewählt
+ist, werden die dafür nötigen Werte abgefragt, auch wenn die zugehörigen Messwert-Sensoren
+abgewählt sind. Ein abgewählter Messwert kostet also seine Entität, aber nie stillschweigend den Index.
 Dasselbe gilt für die Teilindizes.
 
 **Der Entitätsbestand hängt nur an der Auswahl** – nicht daran, was die Station im Moment des

@@ -94,17 +94,33 @@ still `good`.
 sub-index and contribute nothing to the station index; their measurement sensors are
 unaffected.
 
-### The station index can be unknown
+### The station index and its two coverage rules
 
-The station index is the worst of the sub-indices – but only once the EEA minimum data
-requirement is met: NO₂, O₃ and particulate matter (PM2.5 or PM10 or both) all have to be
-present. If they are not, the index is `unknown`. It never falls back to the best
-available value, which would understate the situation. A station reporting ozone only
-therefore shows an ozone sub-index and an unknown station index.
+The station index is the worst of the sub-indices – but only once one of the two EEA
+coverage rules is met:
 
-The EEA asks for less at traffic stations, but the data source does not publish the
-station type, so the stricter rule is applied throughout. The `index_complete` attribute
-makes this visible.
+| Rule | Needs | `index_basis` | `index_complete` |
+|---|---|---|---|
+| Standard (background and industrial stations) | NO₂, O₃ **and** particulate matter | `standard` | `true` |
+| Traffic stations | NO₂ **and** particulate matter | `traffic_rule` | `false` |
+
+Particulate matter means PM2.5 or PM10 or both. Neither rule works without NO₂ or without
+particulate matter: a station short of those has no station index, and the value stays
+`unknown`. It never falls back to the best available sub-index, which would understate the
+situation. A station reporting ozone only therefore shows an ozone sub-index and an unknown
+station index.
+
+**A station without ozone is measured against the traffic rule.** The data source does not
+publish the station type, so a traffic station cannot be told apart from a background
+station that simply measures no ozone. Applying the milder rule to both is a deliberate
+trade: it gives an index to the many stations that report no ozone, and at a background
+station it can read too optimistically in summer, when ozone is often the pollutant that
+would have decided the level. Read `index_basis` before trusting a level, and compare
+levels only within the same basis – `traffic_rule` and `standard` are not the same scale.
+
+A station that meets neither rule does not get the station index ticked when the entry is
+created – two entities that could never leave `unknown` are worth less than their absence.
+It stays one click away in the form, and an entry that already has the entity keeps it.
 
 ### Averaging period – an approximation
 
@@ -124,7 +140,8 @@ The station index and its numeric twin carry:
 |---|---|
 | `dominant_pollutant` | Which pollutant determines the level |
 | `pollutants_used` | The pollutants that went into the index |
-| `index_complete` | Whether the minimum data requirement is met |
+| `index_basis` | Which coverage rule the level was built on: `standard` or `traffic_rule` |
+| `index_complete` | Whether all three groups the standard rule asks for were there |
 | `averaging_basis` | The averaging period actually used |
 | `scheme` | The index scheme and its revision |
 
@@ -288,9 +305,10 @@ Assistant as *unavailable*. The registry entry and the long-term statistics stay
 them again brings them back with the same entity ID and their history. Getting rid of them
 for good is a deliberate delete in Home Assistant – which takes the history with it.
 
-**The station index needs more than its own entity.** It is built from NO₂, O₃ and
-particulate matter, all three at once. While it is selected, the values it needs are fetched
-even when the matching measurement sensors are not. Unticking a measurement therefore costs
+**The station index needs more than its own entity.** It is built from NO₂ and particulate
+matter at the least, and from ozone on top of them wherever the station reports it. While it
+is selected, the values it needs are fetched even when the matching measurement sensors are
+not. Unticking a measurement therefore costs
 its entity, but never quietly empties the index. The same holds for the sub-indices.
 
 **The set of entities depends on the selection alone** – not on what the station happened to
