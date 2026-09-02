@@ -8,5 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/karlrt/ha-austrian-air-quality/issues",
   "requirements": [],
-  "version": "0.6.0a3"
+  "version": "0.6.0"
 }
