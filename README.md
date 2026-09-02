@@ -241,6 +241,20 @@ Or manually:
 
 HACS only offers tagged releases, not the state of the default branch.
 
+### Pre-releases (alpha/beta)
+
+Alpha and beta releases are marked as *pre-release* on GitHub and stay invisible in HACS by
+default. To test one, once the repository has been downloaded through HACS:
+
+1. *Settings → Devices & Services → HACS*, on the "Luftqualität Österreich" device enable
+   the *Pre-release* entity, which is disabled by default
+2. Wait about 30 seconds, then turn the switch on
+3. In HACS, on the repository: menu (⋮) → *Redownload*, pick the pre-release
+4. Restart Home Assistant
+
+The switch applies to this repository only. Turning it off does not downgrade an installed
+pre-release — the next regular release supersedes it.
+
 ### Manual
 
 Copy the `custom_components/austrian_air_quality` folder to the `config/custom_components/`
@@ -350,6 +364,20 @@ python -m unittest discover -s tests -v
 ```
 
 See `custom_components/austrian_air_quality/` for the source code.
+
+### Versioning
+
+`0.MINOR.PATCH`, following SemVer:
+
+- **PATCH** (`0.5.1`): bug fixes, wording, translations, internal refactors — nothing an
+  existing user has to touch after the update
+- **MINOR** (`0.6.0`): new sensors or options, changed behaviour, and anything breaking —
+  changed `unique_id`s, units, `device_class`/`state_class`, removed entities, a raised
+  minimum Home Assistant version
+
+Pre-releases carry the number of the planned version plus a suffix (`0.6.0a1`, `0.6.0b1`)
+and are published as a GitHub *pre-release*. Tag and `manifest.json` must agree, with the
+tag additionally carrying a `v`: `v0.6.0a1`.
 
 ## License
 
