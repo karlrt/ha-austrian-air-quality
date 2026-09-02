@@ -111,6 +111,18 @@ def measurement_key(pollutant: str, meantype: str) -> str:
     return f"{pollutant}_{meantype}"
 
 
+# Every pollutant/averaging-period combination the integration knows, in a
+# stable order. This is the catalogue an entry picks from. What a station
+# happens to report at some moment must never shorten it: a choice built from
+# a snapshot freezes at the moment it was taken, and a value the station only
+# reports again later would stay unreachable.
+MEASUREMENT_KEYS: Final[tuple[str, ...]] = tuple(
+    measurement_key(pollutant, meantype)
+    for pollutant in POLLUTANTS
+    for meantype in MEANTYPES
+)
+
+
 # Entity keys of the EAQI sensors. The sub-index of a pollutant is that
 # pollutant's key plus this suffix, which cannot collide with an averaging
 # period key because no meantype is called "index".
@@ -123,6 +135,23 @@ KEY_STATION_INDEX_LEVEL: Final = "air_quality_index_level"
 def index_key(pollutant: str) -> str:
     """Entity key of the sub-index of one pollutant."""
     return f"{pollutant}{INDEX_SUFFIX}"
+
+
+# Entity key of the diagnostic coordinates entity.
+KEY_STATION_LOCATION: Final = "location"
+
+# Keys of the entry options. They hold what the user picked, and they alone
+# decide which entities exist; whether an entity carries a value is decided at
+# runtime from what the station reports. Keeping those two apart is the point:
+# tying them together is what used to freeze the entity set at setup time.
+OPT_MEASUREMENTS: Final = "measurements"
+OPT_INDEXES: Final = "indexes"
+OPT_STATION_INDEX: Final = "station_index"
+OPT_LOCATION: Final = "location_entity"
+
+# Config flow only, never stored: whether the second step with the index and
+# diagnostic entities follows the measurement selection.
+CONF_ADVANCED: Final = "advanced"
 
 
 # Short chemical labels for the config flow. Deliberately language neutral so

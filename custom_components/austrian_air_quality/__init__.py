@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
+from . import selection
 from .api import AustrianAirQualityApi, AustrianAirQualityStation
 from .const import CONF_STATION_ID, DATA_PREFETCHED, DOMAIN, PREFETCH_MAX_AGE
 from .coordinator import AustrianAirQualityConfigEntry, AustrianAirQualityCoordinator
@@ -35,6 +37,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfig
     else:
         await coordinator.async_config_entry_first_refresh()
 
+    if not entry.options:
+        # An entry from before the selection existed. It starts from what it
+        # already has, so that nothing it shows today disappears, plus whatever
+        # the station reports right now, so that a pollutant which was missing
+        # on the day it was added finally arrives. From here on the selection
+        # is the user's, and nothing derives it from the data again.
+        hass.config_entries.async_update_entry(
+            entry,
+            options=selection.default_options(
+                reported=coordinator.data.measurements if coordinator.data else (),
+                existing=_existing_keys(hass, entry),
+            ),
+        )
+
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
@@ -49,6 +65,28 @@ async def async_unload_entry(hass: HomeAssistant, entry: AustrianAirQualityConfi
 async def async_reload_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> None:
     """Reload a configuration entry after option changes."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _existing_keys(
+    hass: HomeAssistant, entry: AustrianAirQualityConfigEntry
+) -> set[str]:
+    """Entity keys this entry already has in the entity registry.
+
+    Every unique id is the station id plus the entity key, so the keys can be
+    read back without touching the entities. Registry entries that are
+    currently unavailable count too, and that is the point: an entity must not
+    be dropped from the selection just because the station happens not to
+    report its pollutant at this moment.
+    """
+    prefix = f"{entry.data[CONF_STATION_ID]}_"
+    registry = er.async_get(hass)
+    return {
+        registry_entry.unique_id.removeprefix(prefix)
+        for registry_entry in er.async_entries_for_config_entry(
+            registry, entry.entry_id
+        )
+        if registry_entry.unique_id.startswith(prefix)
+    }
 
 
 def _pop_prefetched(

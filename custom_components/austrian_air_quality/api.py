@@ -247,12 +247,33 @@ _API_MEANTYPES: dict[str, str] = {
 }
 
 
-def _queries(meantypes: Sequence[str]) -> list[tuple[str, str, str]]:
-    """Query plan as (measurement key, API component, API averaging period)."""
+# Every pollutant in every averaging period: what a station is fetched with
+# unless its entry asks for less.
+ALL_QUERIES: tuple[tuple[str, str], ...] = tuple(
+    (pollutant, meantype) for pollutant in _COMPONENTS for meantype in MEANTYPES
+)
+
+# What the station search needs: the freshest value of every pollutant, enough
+# to show what a station measures.
+SEARCH_QUERIES: tuple[tuple[str, str], ...] = tuple(
+    (pollutant, MEANTYPE_CURRENT) for pollutant in _COMPONENTS
+)
+
+
+def _queries(pairs: Sequence[tuple[str, str]]) -> list[tuple[str, str, str]]:
+    """Query plan as (measurement key, API component, API averaging period).
+
+    Pairs this client cannot serve are skipped rather than raising: the plan
+    comes from stored options, which outlive any renaming here.
+    """
     return [
-        (measurement_key(pollutant, meantype), component, _API_MEANTYPES[meantype])
-        for pollutant, component in _COMPONENTS.items()
-        for meantype in meantypes
+        (
+            measurement_key(pollutant, meantype),
+            _COMPONENTS[pollutant],
+            _API_MEANTYPES[meantype],
+        )
+        for pollutant, meantype in pairs
+        if pollutant in _COMPONENTS and meantype in _API_MEANTYPES
     ]
 
 
@@ -278,9 +299,7 @@ class AustrianAirQualityApi:
         Austria, where every additional averaging period means another large
         response.
         """
-        stations = await self._async_collect(
-            bbox or AT_BBOX, meantypes=(MEANTYPE_CURRENT,)
-        )
+        stations = await self._async_collect(bbox or AT_BBOX, queries=SEARCH_QUERIES)
         return sorted(stations.values(), key=lambda station: station.station_name)
 
     async def async_fetch_station_data(
@@ -288,11 +307,14 @@ class AustrianAirQualityApi:
         station_id: str,
         latitude: float | None = None,
         longitude: float | None = None,
+        queries: Sequence[tuple[str, str]] | None = None,
     ) -> AustrianAirQualityStation | None:
-        """Fetch all measurements for a single measurement station.
+        """Fetch measurements for a single measurement station.
 
-        Covers every pollutant in every averaging period, so the station comes
-        back with both its current values and its daily means.
+        ``queries`` is the plan as (pollutant, averaging period) pairs, so an
+        entry only pays for what it actually tracks. Left out, every pollutant
+        is fetched in every averaging period. An empty plan is honoured as
+        such and asks the source for nothing at all.
 
         When the station coordinates are known, a small bounding box around them
         keeps the responses small. Otherwise all of Austria has to be scanned
@@ -308,26 +330,32 @@ class AustrianAirQualityApi:
         else:
             bbox = AT_BBOX
 
-        stations = await self._async_collect(bbox, station_id=station_id)
+        stations = await self._async_collect(
+            bbox,
+            station_id=station_id,
+            queries=ALL_QUERIES if queries is None else queries,
+        )
         return stations.get(station_id)
 
     async def _async_collect(
         self,
         bbox: tuple[float, float, float, float],
         station_id: str | None = None,
-        meantypes: Sequence[str] = MEANTYPES,
+        queries: Sequence[tuple[str, str]] = ALL_QUERIES,
     ) -> dict[str, AustrianAirQualityStation]:
-        """Query every pollutant for a bounding box and group by station.
+        """Query a plan for a bounding box and group the results by station.
 
         Individual query failures are tolerated; only a complete failure of all
         requests is raised, so one flaky parameter does not take the whole
         station down.
         """
         stations: dict[str, AustrianAirQualityStation] = {}
-        queries = _queries(meantypes)
+        plan = _queries(queries)
+        if not plan:
+            return {}
         failures = 0
 
-        for index, (key, component, api_meantype) in enumerate(queries):
+        for index, (key, component, api_meantype) in enumerate(plan):
             if index:
                 await asyncio.sleep(REQUEST_DELAY)
             try:
@@ -358,7 +386,7 @@ class AustrianAirQualityApi:
                     stations[measurement.station_id] = station
                 station.measurements[key] = measurement
 
-        if failures == len(queries):
+        if failures == len(plan):
             raise AustrianAirQualityConnectionError(
                 "None of the air quality requests succeeded"
             )

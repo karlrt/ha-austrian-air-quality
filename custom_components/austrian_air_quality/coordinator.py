@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from . import selection
 from .api import (
     AustrianAirQualityApiError,
     AustrianAirQualityAuthError,
@@ -62,10 +63,17 @@ class AustrianAirQualityCoordinator(DataUpdateCoordinator[AustrianAirQualityStat
         return self.latitude, self.longitude
 
     async def _async_update_data(self) -> AustrianAirQualityStation | None:
-        """Fetch current measurements."""
+        """Fetch the measurements this entry tracks.
+
+        The plan is read on every cycle rather than kept from the setup, so it
+        is right even for the update that a changed selection triggers.
+        """
         try:
             return await self.api.async_fetch_station_data(
-                self.station_id, self.latitude, self.longitude
+                self.station_id,
+                self.latitude,
+                self.longitude,
+                selection.required_queries(self.config_entry.options),
             )
         except AustrianAirQualityAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err

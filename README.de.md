@@ -34,9 +34,11 @@ Benötigt Home Assistant 2026.8.0 oder neuer. Keine zusätzlichen Python-Abhäng
 
 ## Messgrößen
 
-Jeder Schadstoff wird zweifach angelegt: als aktueller Wert – der Halbstundenmittelwert, der
-frischeste Wert der Datenquelle – und als Tagesmittelwert, auf den sich die österreichischen
-Grenzwerte beziehen.
+Jeder Schadstoff steht zweifach zur Verfügung: als aktueller Wert – der
+Halbstundenmittelwert, der frischeste Wert der Datenquelle – und als Tagesmittelwert, auf den
+sich die österreichischen Grenzwerte beziehen. Welche davon tatsächlich als Sensoren angelegt
+werden, entscheidet die Auswahl beim Einrichten, siehe [Auswahl der
+Entitäten](#auswahl-der-entitäten).
 
 **Das Tagesmittel ist der Wert des abgeschlossenen Vortags**, kein laufendes Mittel des
 aktuellen Tages. Es trifft kurz nach Mitternacht MEZ ein und bleibt dann bis zum nächsten
@@ -269,15 +271,52 @@ Schadstoffe, bevor der Eintrag angelegt wird. Bereits eingerichtete Messstellen 
 ausgeblendet. Liefert eine Suche mehr als 25 Stationen, wird statt der Liste ein genauerer
 Suchbegriff verlangt.
 
-Es werden nur die Schadstoffe als Sensoren angelegt, die die Station tatsächlich liefert –
-jeder davon als aktueller Wert und als Tagesmittel des Vortags.
-
 Die Benutzeroberfläche gibt es auf Deutsch und Englisch.
+
+### Auswahl der Entitäten
+
+Nach der Detailansicht folgt die Auswahl der Messwerte. Angeboten wird immer der vollständige
+Katalog – sieben Schadstoffe mal zwei Mittelwerttypen –, vorausgewählt ist, was die Station
+gerade meldet. Der Unterschied ist wichtig: Ein Schadstoff, den die Station im Moment des
+Einrichtens gerade aussetzt, lässt sich trotzdem anhaken und liefert Werte, sobald er wieder
+da ist.
+
+Der Schalter *Die übrigen Entitäten mit auswählen* öffnet einen zweiten Schritt mit den
+EAQI-Teilindizes, dem Stationsindex und der Koordinaten-Entität. Ohne Haken werden sie
+passend zur Messwertauswahl angelegt.
+
+Nachträglich ändern lässt sich alles über *Konfigurieren* am Eintrag; dort steht der volle
+Umfang in einem Formular. Der Eintrag wird danach automatisch neu geladen.
+
+**Was die Auswahl kostet.** Jeder angehakte Messwert ist eine Abfrage pro
+Aktualisierungszyklus, also alle 30 Minuten. Der Vollausbau sind 14 Abfragen pro Station,
+eine Auswahl aus zwei Werten sind zwei.
+
+**Abgewählte Entitäten werden nicht gelöscht.** Sie werden nur nicht mehr angelegt und stehen
+in Home Assistant als *nicht verfügbar*. Registry-Eintrag und Langzeitstatistik bleiben
+erhalten, beim Wiederanhaken kommen sie mit derselben Entity-ID und ihrer Historie zurück.
+Wer sie wirklich loswerden will, löscht sie in Home Assistant selbst – dann ist auch die
+Historie weg.
+
+**Der Stationsindex braucht mehr als seine eigene Entität.** Er wird aus NO₂, O₃ und
+Feinstaub gebildet, und zwar aus allen dreien gleichzeitig. Solange er ausgewählt ist, werden
+die dafür nötigen Werte abgefragt, auch wenn die zugehörigen Messwert-Sensoren abgewählt
+sind. Ein abgewählter Messwert kostet also seine Entität, aber nie stillschweigend den Index.
+Dasselbe gilt für die Teilindizes.
+
+**Der Entitätsbestand hängt nur an der Auswahl** – nicht daran, was die Station im Moment des
+Einrichtens oder eines Neustarts gerade gemeldet hat. Eine Messlücke lässt einen Sensor
+vorübergehend auf *nicht verfügbar* stehen und danach von selbst weiterlaufen; zuvor
+verschwand er in diesem Fall dauerhaft und kam erst nach einem Neuladen des Eintrags zurück.
+
+Bestehende Einträge bekommen beim Update automatisch eine Auswahl: alles, was sie schon
+haben, plus alles, was ihre Station beim ersten Abruf danach meldet. Es geht also nichts
+verloren, und ein Sensor, der wegen einer solchen Messlücke fehlte, kommt zurück.
 
 ## Station auf der Karte
 
-Jede Station bekommt zusätzlich eine Diagnose-Entität **Koordinaten**, deren Zustand die
-Position als `47.06695, 15.44226` anzeigt. Sie steht auf der Geräteseite unter *Diagnose* und
+Jede Station bekommt zusätzlich eine Diagnose-Entität **Koordinaten** – sofern in der
+Auswahl aktiviert –, deren Zustand die Position als `47.06695, 15.44226` anzeigt. Sie steht auf der Geräteseite unter *Diagnose* und
 ist der passende Eintrag für eine Karten-Karte, weil es sie genau einmal pro Station gibt.
 
 Jeder Sensor – auch die Koordinaten-Entität – liefert die Stationsdaten als Attribute mit:

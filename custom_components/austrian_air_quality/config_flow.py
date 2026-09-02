@@ -4,14 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, CONF_RADIUS
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     LocationSelector,
     NumberSelector,
     NumberSelectorConfig,
@@ -25,6 +33,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.util import dt as dt_util
 
+from . import selection
 from .api import (
     AustrianAirQualityApi,
     AustrianAirQualityApiError,
@@ -35,6 +44,7 @@ from .api import (
 )
 from .const import (
     AT_BBOX,
+    CONF_ADVANCED,
     CONF_LOCATION,
     CONF_QUERY,
     CONF_STATION_ID,
@@ -43,6 +53,11 @@ from .const import (
     DEFAULT_RADIUS_KM,
     DOMAIN,
     MAX_RADIUS_KM,
+    MEASUREMENT_KEYS,
+    OPT_INDEXES,
+    OPT_LOCATION,
+    OPT_MEASUREMENTS,
+    OPT_STATION_INDEX,
     POLLUTANT_LABELS,
 )
 
@@ -75,10 +90,62 @@ def _format_time(measurement: AustrianAirQualityMeasurement) -> str:
     return _cell(measurement.measured_at_raw or "–")
 
 
+def _measurement_selector() -> SelectSelector:
+    """Checkbox list over the whole catalogue of measurements.
+
+    Deliberately the catalogue and not what the station reports right now: a
+    list built from the current values would leave a pollutant that is missing
+    for the moment permanently unreachable for this entry.
+    """
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=list(MEASUREMENT_KEYS),
+            multiple=True,
+            mode=SelectSelectorMode.LIST,
+            translation_key="measurements",
+        )
+    )
+
+
+def _index_selector() -> SelectSelector:
+    """Checkbox list over the pollutants the EAQI is defined for."""
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=list(selection.INDEX_KEYS),
+            multiple=True,
+            mode=SelectSelectorMode.LIST,
+            translation_key="indexes",
+        )
+    )
+
+
+def _extras_schema(options: Mapping[str, Any]) -> dict[Any, Any]:
+    """The index and diagnostic entities, shared by both flows."""
+    return {
+        vol.Required(
+            OPT_INDEXES, default=list(selection.wanted_indexes(options))
+        ): _index_selector(),
+        vol.Required(
+            OPT_STATION_INDEX, default=selection.wants_station_index(options)
+        ): BooleanSelector(),
+        vol.Required(
+            OPT_LOCATION, default=selection.wants_location(options)
+        ): BooleanSelector(),
+    }
+
+
 class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
     """Guides the user from a location or a name to a concrete station."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> AustrianAirQualityOptionsFlow:
+        """Let an existing station be changed after the fact."""
+        return AustrianAirQualityOptionsFlow()
 
     def __init__(self) -> None:
         """Initialize flow state."""
@@ -88,6 +155,7 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
         self._selected: AustrianAirQualityStation | None = None
         self._prefetch: asyncio.Task[AustrianAirQualityStation | None] | None = None
         self._prefetch_for: str | None = None
+        self._options: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -308,6 +376,80 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Pick the measurements to track.
+
+        Everything else - the sub-indices, the station index, the coordinates -
+        sits behind the switch at the bottom, so the common case stays a single
+        list of measurements.
+        """
+        if self._selected is None:
+            return await self.async_step_user()
+        station = self._selected
+
+        if user_input is not None:
+            chosen = list(user_input[OPT_MEASUREMENTS])
+            self._options = selection.default_options(reported=chosen)
+            self._options[OPT_MEASUREMENTS] = chosen
+            if user_input[CONF_ADVANCED]:
+                return await self.async_step_extras()
+            return await self._async_create_entry()
+
+        defaults = selection.default_options(
+            reported=self._preselected_keys(station)
+        )
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    OPT_MEASUREMENTS, default=defaults[OPT_MEASUREMENTS]
+                ): _measurement_selector(),
+                vol.Required(CONF_ADVANCED, default=False): BooleanSelector(),
+            }
+        )
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=schema,
+            description_placeholders={"station": station.station_name},
+        )
+
+    async def async_step_extras(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pick the index and diagnostic entities."""
+        if user_input is not None:
+            self._options[OPT_INDEXES] = list(user_input[OPT_INDEXES])
+            self._options[OPT_STATION_INDEX] = user_input[OPT_STATION_INDEX]
+            self._options[OPT_LOCATION] = user_input[OPT_LOCATION]
+            return await self._async_create_entry()
+
+        return self.async_show_form(
+            step_id="extras", data_schema=vol.Schema(_extras_schema(self._options))
+        )
+
+    def _preselected_keys(self, station: AustrianAirQualityStation) -> list[str]:
+        """Measurement keys to tick for the chosen station.
+
+        The picker only ever loaded the freshest values, so the daily means are
+        assumed to exist for every pollutant the station reports. If the
+        prefetch that has been running since the station was picked happens to
+        be finished, its result is used instead, because it knows both. Waiting
+        for it would cost the user half a minute for a preselection they can
+        change on the spot.
+        """
+        task = self._prefetch
+        if (
+            task is not None
+            and task.done()
+            and not task.cancelled()
+            and task.exception() is None
+        ):
+            complete = task.result()
+            if complete is not None:
+                return list(complete.measurements)
+
+        defaults = selection.default_for_pollutants(station.pollutants)
+        return list(defaults[OPT_MEASUREMENTS])
+
+    async def _async_create_entry(self) -> ConfigFlowResult:
         """Create the config entry for the selected station."""
         if self._selected is None:
             return await self.async_step_user()
@@ -334,6 +476,7 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_LATITUDE: station.latitude,
                 CONF_LONGITUDE: station.longitude,
             },
+            options=self._options,
         )
 
     def _start_prefetch(self, station: AustrianAirQualityStation) -> None:
@@ -417,3 +560,42 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
             api = AustrianAirQualityApi(async_get_clientsession(self.hass))
             self._all_stations = await api.async_get_stations(AT_BBOX)
         return self._all_stations
+
+
+class AustrianAirQualityOptionsFlow(OptionsFlow):
+    """Change what an already configured station tracks.
+
+    The full extent in one form, unlike the setup, which only asks for the
+    measurements. Every list is the catalogue, so a pollutant the station was
+    not reporting on the day it was added can be switched on here.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show and store the selection."""
+        if user_input is not None:
+            return self.async_create_entry(
+                data={
+                    OPT_MEASUREMENTS: list(user_input[OPT_MEASUREMENTS]),
+                    OPT_INDEXES: list(user_input[OPT_INDEXES]),
+                    OPT_STATION_INDEX: user_input[OPT_STATION_INDEX],
+                    OPT_LOCATION: user_input[OPT_LOCATION],
+                }
+            )
+
+        options = self.config_entry.options
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    OPT_MEASUREMENTS,
+                    default=list(selection.wanted_measurements(options)),
+                ): _measurement_selector(),
+                **_extras_schema(options),
+            }
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            description_placeholders={"station": self.config_entry.title},
+        )

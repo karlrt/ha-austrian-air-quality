@@ -22,7 +22,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import eaqi
+from . import eaqi, selection
 from .api import AustrianAirQualityMeasurement
 from .const import (
     ATTR_ALTITUDE,
@@ -42,6 +42,7 @@ from .const import (
     DOMAIN,
     KEY_STATION_INDEX,
     KEY_STATION_INDEX_LEVEL,
+    KEY_STATION_LOCATION,
     MANUFACTURER,
     MEANTYPE_CURRENT,
     MEANTYPES,
@@ -169,30 +170,33 @@ async def async_setup_entry(
     entry: AustrianAirQualityConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up sensors for a configuration entry."""
-    coordinator = entry.runtime_data
-    available = coordinator.data.measurements if coordinator.data else {}
+    """Set up the sensors a configuration entry asks for.
 
+    What exists is decided by the selection in the entry options, and by
+    nothing else. In particular it is not decided by what the first fetch
+    happened to bring back: a station that drops a pollutant for an hour would
+    otherwise lose that sensor until the next reload, and one that starts
+    reporting a new pollutant would never gain it. Whether a sensor has a value
+    is a separate matter, settled at runtime by its ``available`` property.
+    """
+    coordinator = entry.runtime_data
+    options = entry.options
+
+    wanted = set(selection.wanted_measurements(options))
     entities: list[SensorEntity] = [
         AustrianAirQualitySensor(coordinator, entry, description)
         for description in SENSOR_DESCRIPTIONS
-        if description.key in available
+        if description.key in wanted
     ]
 
-    # A sub-index for every index pollutant the station currently reports, on
-    # the half-hourly mean. A station that reports none of the five gets no
-    # index entities at all rather than a permanently unknown one.
-    index_pollutants = [
-        pollutant
-        for pollutant in eaqi.EAQI_POLLUTANTS
-        if measurement_key(pollutant, MEANTYPE_CURRENT) in available
-    ]
+    # One sub-index per selected index pollutant, on the half-hourly mean.
+    wanted_indexes = set(selection.wanted_indexes(options))
     entities.extend(
         AustrianAirQualityIndexSensor(coordinator, entry, description, pollutant)
         for description, pollutant in zip(INDEX_DESCRIPTIONS, eaqi.EAQI_POLLUTANTS)
-        if pollutant in index_pollutants
+        if description.key in wanted_indexes
     )
-    if index_pollutants:
+    if selection.wants_station_index(options):
         entities.append(
             AustrianAirQualityStationIndexSensor(
                 coordinator, entry, STATION_INDEX_DESCRIPTION
@@ -204,7 +208,12 @@ async def async_setup_entry(
             )
         )
 
-    if coordinator.station_coordinates != (None, None):
+    # The coordinates are the one thing that cannot be reported later: they
+    # come from the entry, so an entity without them would stay empty forever.
+    if selection.wants_location(options) and coordinator.station_coordinates != (
+        None,
+        None,
+    ):
         entities.append(AustrianAirQualityLocationSensor(coordinator, entry))
 
     async_add_entities(entities)
@@ -407,7 +416,7 @@ class AustrianAirQualityLocationSensor(AustrianAirQualityEntity, SensorEntity):
     ) -> None:
         """Initialize sensor."""
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{coordinator.station_id}_location"
+        self._attr_unique_id = f"{coordinator.station_id}_{KEY_STATION_LOCATION}"
 
     @property
     def native_value(self) -> str | None:

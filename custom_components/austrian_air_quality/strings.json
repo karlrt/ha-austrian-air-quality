@@ -32,9 +32,33 @@
         "title": "Review measuring station",
         "description": "**{station}**\n\nAddress: {address}\n\nOperator: {owner}\n\nDistance: {distance}\n\nThe station currently reports these measurements. Each one is added as two sensors, the current value and the previous day's daily mean:\n\n| Measurement | Current | Time |\n| --- | --- | --- |\n{measurements}",
         "menu_options": {
-          "confirm": "Add this measuring station",
+          "confirm": "Continue to the measurement selection",
           "station": "Pick a different station",
           "user": "Start a new search"
+        }
+      },
+      "confirm": {
+        "title": "Choose the measurements",
+        "description": "**{station}**\n\nPick the measurements to add as sensors. Preselected is what the station reports at the moment, but the choice is not limited to that: a pollutant the station is currently skipping can be ticked all the same and starts delivering as soon as it is back.\n\nEvery ticked measurement costs one request per update, every 30 minutes. All of this can be changed later under *Configure*.",
+        "data": {
+          "measurements": "Measurements",
+          "advanced": "Choose the other entities as well"
+        },
+        "data_description": {
+          "advanced": "Sub-indices, station index and coordinates. Left unticked, they are added to match the selection above."
+        }
+      },
+      "extras": {
+        "title": "The other entities",
+        "description": "These are added on top of the measurements.",
+        "data": {
+          "indexes": "EAQI sub-indices",
+          "station_index": "Station index (air quality index and level)",
+          "location_entity": "Coordinates (diagnostic)"
+        },
+        "data_description": {
+          "indexes": "A sub-index needs the current value of its pollutant. That value is fetched for it even when the measurement itself is not selected.",
+          "station_index": "Needs NO₂, O₃ and particulate matter at the same time, and stays unknown otherwise. The values it needs are fetched regardless of the selection above."
         }
       }
     },
@@ -164,6 +188,53 @@
       },
       "station_location": {
         "name": "Coordinates"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Change the selection",
+        "description": "**{station}**\n\nWhat this station provides as entities. Unticked entities are not deleted: they stay in the registry with their history and come back unchanged when they are ticked again.\n\nEvery ticked measurement costs one request per update, every 30 minutes.",
+        "data": {
+          "measurements": "Measurements",
+          "indexes": "EAQI sub-indices",
+          "station_index": "Station index (air quality index and level)",
+          "location_entity": "Coordinates (diagnostic)"
+        },
+        "data_description": {
+          "measurements": "The full catalogue, not only what the station reports today.",
+          "station_index": "Needs NO₂, O₃ and particulate matter at the same time, and stays unknown otherwise."
+        }
+      }
+    }
+  },
+  "selector": {
+    "measurements": {
+      "options": {
+        "pm10": "Particulate matter PM10 – current value",
+        "pm10_daily": "Particulate matter PM10 – daily mean (previous day)",
+        "pm25": "Particulate matter PM2.5 – current value",
+        "pm25_daily": "Particulate matter PM2.5 – daily mean (previous day)",
+        "no2": "Nitrogen dioxide – current value",
+        "no2_daily": "Nitrogen dioxide – daily mean (previous day)",
+        "no": "Nitrogen monoxide – current value",
+        "no_daily": "Nitrogen monoxide – daily mean (previous day)",
+        "o3": "Ozone – current value",
+        "o3_daily": "Ozone – daily mean (previous day)",
+        "so2": "Sulphur dioxide – current value",
+        "so2_daily": "Sulphur dioxide – daily mean (previous day)",
+        "co": "Carbon monoxide – current value",
+        "co_daily": "Carbon monoxide – daily mean (previous day)"
+      }
+    },
+    "indexes": {
+      "options": {
+        "pm25_index": "PM2.5 sub-index",
+        "pm10_index": "PM10 sub-index",
+        "o3_index": "Ozone sub-index",
+        "no2_index": "Nitrogen dioxide sub-index",
+        "so2_index": "Sulphur dioxide sub-index"
       }
     }
   }
