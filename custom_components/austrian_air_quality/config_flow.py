@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -45,6 +45,7 @@ from .api import (
 from .const import (
     AT_BBOX,
     CONF_ADVANCED,
+    CONF_DAILY,
     CONF_LOCATION,
     CONF_QUERY,
     CONF_STATION_ID,
@@ -90,16 +91,21 @@ def _format_time(measurement: AustrianAirQualityMeasurement) -> str:
     return _cell(measurement.measured_at_raw or "–")
 
 
-def _measurement_selector() -> SelectSelector:
-    """Checkbox list over the whole catalogue of measurements.
+def _measurement_selector(keys: Iterable[str]) -> SelectSelector:
+    """Checkbox list over measurement keys.
 
     Deliberately the catalogue and not what the station reports right now: a
     list built from the current values would leave a pollutant that is missing
     for the moment permanently unreachable for this entry.
+
+    Which part of the catalogue is up to the caller: the setup asks for the
+    freshest values and the daily means on steps of their own, the options flow
+    for both at once. The labels are resolved per key from the ``measurements``
+    translations, so no subset needs translations of its own.
     """
     return SelectSelector(
         SelectSelectorConfig(
-            options=list(MEASUREMENT_KEYS),
+            options=list(keys),
             multiple=True,
             mode=SelectSelectorMode.LIST,
             translation_key="measurements",
@@ -120,7 +126,12 @@ def _index_selector() -> SelectSelector:
 
 
 def _extras_schema(options: Mapping[str, Any]) -> dict[Any, Any]:
-    """The index and diagnostic entities, shared by both flows."""
+    """The index and diagnostic entities, for the options flow.
+
+    The setup spreads the same ground over two steps and answers the station
+    index on the first one, so it builds its forms itself; here everything sits
+    in one place, because someone who came to adjust knows what they are after.
+    """
     return {
         vol.Required(
             OPT_INDEXES, default=list(selection.wanted_indexes(options))
@@ -376,32 +387,40 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Pick the measurements to track.
+        """Pick the freshest value of each pollutant, plus the station index.
 
-        Everything else - the sub-indices, the station index, the coordinates -
-        sits behind the switch at the bottom, so the common case stays a single
-        list of measurements.
+        The short end of the catalogue on purpose. Offering all fourteen
+        measurements here buried the one question nearly everyone answers - which
+        pollutants am I interested in - under a list twice as long, and left a
+        setup that never looked further with around twenty entities per station.
+
+        The station index sits here rather than behind the switch because it is
+        the one number a station can be summed up in, and the daily means and
+        sub-indices behind it are the second thoughts.
         """
         if self._selected is None:
             return await self.async_step_user()
         station = self._selected
 
         if user_input is not None:
-            chosen = list(user_input[OPT_MEASUREMENTS])
-            self._options = selection.default_options(reported=chosen)
-            self._options[OPT_MEASUREMENTS] = chosen
+            self._options = selection.default_for_confirm(station.pollutants)
+            self._options[OPT_MEASUREMENTS] = list(user_input[OPT_MEASUREMENTS])
+            self._options[OPT_STATION_INDEX] = user_input[OPT_STATION_INDEX]
             if user_input[CONF_ADVANCED]:
                 return await self.async_step_extras()
             return await self._async_create_entry()
 
-        defaults = selection.default_options(
-            reported=self._preselected_keys(station)
+        defaults = selection.default_for_confirm(
+            self._preselected_pollutants(station)
         )
         schema = vol.Schema(
             {
                 vol.Required(
                     OPT_MEASUREMENTS, default=defaults[OPT_MEASUREMENTS]
-                ): _measurement_selector(),
+                ): _measurement_selector(selection.CURRENT_KEYS),
+                vol.Required(
+                    OPT_STATION_INDEX, default=defaults[OPT_STATION_INDEX]
+                ): BooleanSelector(),
                 vol.Required(CONF_ADVANCED, default=False): BooleanSelector(),
             }
         )
@@ -414,26 +433,55 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_extras(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Pick the index and diagnostic entities."""
+        """Pick the daily means, the sub-indices and the coordinates entity.
+
+        Everything the first step deliberately left out. The station index is
+        not repeated here - it was answered there, and asking twice would read
+        like two different questions.
+
+        The daily means are collected under their own key and folded back into
+        the one stored measurement list on the way out, so the split stays
+        inside this form and the options keep the shape every other module
+        reads.
+        """
+        current = [
+            key
+            for key in self._options.get(OPT_MEASUREMENTS, ())
+            if key in selection.CURRENT_KEYS
+        ]
+
         if user_input is not None:
+            daily = set(user_input[CONF_DAILY])
+            chosen = set(current)
+            self._options[OPT_MEASUREMENTS] = [
+                key for key in MEASUREMENT_KEYS if key in chosen or key in daily
+            ]
             self._options[OPT_INDEXES] = list(user_input[OPT_INDEXES])
-            self._options[OPT_STATION_INDEX] = user_input[OPT_STATION_INDEX]
             self._options[OPT_LOCATION] = user_input[OPT_LOCATION]
             return await self._async_create_entry()
 
-        return self.async_show_form(
-            step_id="extras", data_schema=vol.Schema(_extras_schema(self._options))
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DAILY, default=self._preselected_daily(current)
+                ): _measurement_selector(selection.DAILY_KEYS),
+                vol.Required(
+                    OPT_INDEXES,
+                    default=list(
+                        selection.default_options(reported=current)[OPT_INDEXES]
+                    ),
+                ): _index_selector(),
+                vol.Required(OPT_LOCATION, default=False): BooleanSelector(),
+            }
         )
+        return self.async_show_form(step_id="extras", data_schema=schema)
 
-    def _preselected_keys(self, station: AustrianAirQualityStation) -> list[str]:
-        """Measurement keys to tick for the chosen station.
+    def _prefetched(self) -> AustrianAirQualityStation | None:
+        """The prefetch for the chosen station, if it happens to be finished.
 
-        The picker only ever loaded the freshest values, so the daily means are
-        assumed to exist for every pollutant the station reports. If the
-        prefetch that has been running since the station was picked happens to
-        be finished, its result is used instead, because it knows both. Waiting
-        for it would cost the user half a minute for a preselection they can
-        change on the spot.
+        It knows the daily means as well, which the picker never loaded.
+        Waiting for it would cost the user half a minute for a preselection
+        they can change on the spot, so it is used only when it is already in.
         """
         task = self._prefetch
         if (
@@ -442,12 +490,32 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
             and not task.cancelled()
             and task.exception() is None
         ):
-            complete = task.result()
-            if complete is not None:
-                return list(complete.measurements)
+            return task.result()
+        return None
 
-        defaults = selection.default_for_pollutants(station.pollutants)
-        return list(defaults[OPT_MEASUREMENTS])
+    def _preselected_pollutants(
+        self, station: AustrianAirQualityStation
+    ) -> list[str]:
+        """Pollutants to tick on the first step: what the station reports."""
+        complete = self._prefetched()
+        if complete is not None:
+            return list(complete.pollutants)
+        return list(station.pollutants)
+
+    def _preselected_daily(self, chosen: Iterable[str]) -> list[str]:
+        """Daily mean keys to tick on the second step.
+
+        The counterparts of the first step's choice. Where the prefetch is in,
+        a daily mean the source does not publish for this station is dropped
+        from it; without that knowledge, assuming it exists is the friendlier
+        guess, because an entity without a value is visible and one click away
+        from being switched off while a missing one is neither.
+        """
+        counterparts = selection.daily_counterparts(chosen)
+        complete = self._prefetched()
+        if complete is None:
+            return list(counterparts)
+        return [key for key in counterparts if key in complete.measurements]
 
     async def _async_create_entry(self) -> ConfigFlowResult:
         """Create the config entry for the selected station."""
@@ -597,7 +665,7 @@ class AustrianAirQualityOptionsFlow(OptionsFlow):
                 vol.Required(
                     OPT_MEASUREMENTS,
                     default=list(selection.wanted_measurements(options)),
-                ): _measurement_selector(),
+                ): _measurement_selector(MEASUREMENT_KEYS),
                 **_extras_schema(options),
             }
         )

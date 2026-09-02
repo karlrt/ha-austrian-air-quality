@@ -56,6 +56,22 @@ _INDEX_POLLUTANTS: dict[str, str] = {
     index_key(pollutant): pollutant for pollutant in eaqi.EAQI_POLLUTANTS
 }
 
+# The two halves of the catalogue, in catalogue order. The setup asks for them
+# on separate steps - the freshest value of a pollutant is what nearly everyone
+# is after, the daily mean is a second thought - while the stored selection
+# stays one list, so nothing downstream has to know about the split.
+CURRENT_KEYS: tuple[str, ...] = tuple(
+    key
+    for key, (_, meantype) in _MEASUREMENT_PARTS.items()
+    if meantype == MEANTYPE_CURRENT
+)
+
+DAILY_KEYS: tuple[str, ...] = tuple(
+    key
+    for key, (_, meantype) in _MEASUREMENT_PARTS.items()
+    if meantype != MEANTYPE_CURRENT
+)
+
 
 def _kept(stored: Any, catalogue: tuple[str, ...]) -> tuple[str, ...]:
     """The stored keys that are still known, in catalogue order.
@@ -120,6 +136,39 @@ def required_queries(options: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
     return tuple(pair for pair in _MEASUREMENT_PARTS.values() if pair in needed)
 
 
+def daily_counterparts(measurements: Iterable[str]) -> tuple[str, ...]:
+    """The daily mean keys belonging to these measurement keys.
+
+    Someone who wants a pollutant usually wants both of its averaging periods,
+    so the second step of the setup starts from the counterparts of what the
+    first one got. Unknown keys are ignored, as everywhere else here.
+    """
+    pollutants = {
+        _MEASUREMENT_PARTS[key][0]
+        for key in measurements
+        if key in _MEASUREMENT_PARTS
+    }
+    return tuple(key for key in DAILY_KEYS if _MEASUREMENT_PARTS[key][0] in pollutants)
+
+
+def station_index_default(pollutants: Iterable[str]) -> bool:
+    """Whether the station index starts out ticked for these pollutants.
+
+    Only where it can actually reach a level: either EEA coverage rule will do,
+    but a single index pollutant is not enough for either, and ticking it on
+    such a station produces two entities that stay unknown for good. It stays
+    one click away, because the forms offer it either way.
+
+    Takes the pollutants rather than the chosen sub-indices on purpose. The
+    setup no longer picks sub-indices by default, so reading the rule off them
+    would answer "no" everywhere.
+    """
+    reported = set(pollutants)
+    return eaqi.has_minimum_data(
+        tuple(pollutant for pollutant in eaqi.EAQI_POLLUTANTS if pollutant in reported)
+    )
+
+
 def default_options(
     reported: Iterable[str] = (), existing: Iterable[str] = ()
 ) -> dict[str, Any]:
@@ -149,34 +198,36 @@ def default_options(
     )
     return {
         OPT_MEASUREMENTS: list(measurements),
-        # The station index is preselected only where it can actually reach a
-        # level: either coverage rule will do, but a single index pollutant is
-        # not enough for either. Ticking it on such a station used to produce
-        # two entities that stay unknown for good. It stays one click away in
-        # the forms, which offer it either way, and an installation that
-        # already has the entity keeps it - unticking it here would drop an
-        # entity and its history over a default.
-        OPT_STATION_INDEX: eaqi.has_minimum_data(index_pollutants)
+        # An installation that already has the station index keeps it whatever
+        # the coverage rule says - unticking it here would drop an entity and
+        # its history over a default.
+        OPT_STATION_INDEX: station_index_default(index_pollutants)
         or KEY_STATION_INDEX in have,
         OPT_INDEXES: list(indexes),
         OPT_LOCATION: True,
     }
 
 
-def default_for_pollutants(pollutants: Iterable[str]) -> dict[str, Any]:
-    """The selection to start from for a station that reports these pollutants.
+def default_for_confirm(pollutants: Iterable[str]) -> dict[str, Any]:
+    """The selection the first step of the setup starts from.
 
-    Both averaging periods are picked for each of them. The station list is
-    built from the freshest values alone, so nothing is known about the daily
-    means at that point, and assuming they exist is the friendlier guess: a
-    daily mean the source does not publish leaves an entity without a value,
-    which is visible and one click away from being switched off, while a
-    missing entity is neither.
+    Deliberately the lean end of the catalogue: the freshest value of every
+    pollutant the station reports, plus the station index where it can reach a
+    level. The daily means, the sub-indices and the coordinates entity are not
+    in it - they are what the second step is for, and a setup that never opens
+    that step leaves them out rather than creating a dozen entities the user
+    never saw offered.
+
+    Contrast :func:`default_options`, which stays generous because it answers a
+    different question: what an entry from before the selection existed should
+    keep, where dropping anything would take an entity and its history with it.
     """
-    return default_options(
-        reported=[
-            measurement_key(pollutant, meantype)
-            for pollutant in pollutants
-            for meantype in MEANTYPES
-        ]
-    )
+    reported = set(pollutants)
+    return {
+        OPT_MEASUREMENTS: [
+            key for key in CURRENT_KEYS if _MEASUREMENT_PARTS[key][0] in reported
+        ],
+        OPT_STATION_INDEX: station_index_default(reported),
+        OPT_INDEXES: [],
+        OPT_LOCATION: False,
+    }

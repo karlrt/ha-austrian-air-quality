@@ -39,26 +39,29 @@
       },
       "confirm": {
         "title": "Choose the measurements",
-        "description": "**{station}**\n\nPick the measurements to add as sensors. Preselected is what the station reports at the moment, but the choice is not limited to that: a pollutant the station is currently skipping can be ticked all the same and starts delivering as soon as it is back.\n\nEvery ticked measurement costs one request per update, every 30 minutes. All of this can be changed later under *Configure*.",
+        "description": "**{station}**\n\nPick the pollutants to add as sensors. These are the half-hourly means, the freshest figure the Environment Agency publishes. Preselected is what the station reports at the moment, but the choice is not limited to that: a pollutant the station is currently skipping can be ticked all the same and starts delivering as soon as it is back.\n\nEvery ticked value costs one request per update, every 30 minutes. All of this can be changed later under *Configure*.",
         "data": {
-          "measurements": "Measurements",
-          "advanced": "Choose the other entities as well"
+          "measurements": "Pollutants (current value)",
+          "station_index": "Station air quality index (EAQI)",
+          "advanced": "Choose further entities"
         },
         "data_description": {
-          "advanced": "Sub-indices, station index and coordinates. Left unticked, they are added to match the selection above."
+          "station_index": "Needs NO₂ and particulate matter. Without O₃ the milder EEA rule for traffic stations applies, and the index cannot account for ozone. The values it needs are fetched regardless of the selection above.",
+          "advanced": "Opens one more step after submitting: daily means, the EAQI sub-index of each pollutant, and the coordinates. Left unticked, none of them are created; they can be added at any time under *Configure*."
         }
       },
       "extras": {
-        "title": "The other entities",
-        "description": "These are added on top of the measurements.",
+        "title": "Further entities",
+        "description": "Everything the previous step left out. None of it is needed for the station to deliver values.",
         "data": {
+          "daily_means": "Daily mean (previous day)",
           "indexes": "EAQI sub-indices",
-          "station_index": "Station index (air quality index and level)",
           "location_entity": "Coordinates (diagnostic)"
         },
         "data_description": {
+          "daily_means": "The completed previous day, not the day in progress. Preselected are the daily means of the pollutants from the previous step.",
           "indexes": "A sub-index needs the current value of its pollutant. That value is fetched for it even when the measurement itself is not selected.",
-          "station_index": "Needs NO₂ and particulate matter. Without O₃ the milder EEA rule for traffic stations applies, and the index cannot account for ozone. The values it needs are fetched regardless of the selection above."
+          "location_entity": "An entity carrying the coordinates of the measuring site, for the map card on a dashboard. Without it the station cannot be shown on a map."
         }
       }
     },

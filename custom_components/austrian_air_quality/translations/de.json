@@ -39,26 +39,29 @@
       },
       "confirm": {
         "title": "Messwerte auswählen",
-        "description": "**{station}**\n\nWähle die Messwerte, die als Sensoren angelegt werden sollen. Vorausgewählt ist, was die Station derzeit meldet – die Auswahl ist aber nicht darauf beschränkt: Ein Schadstoff, den die Station gerade aussetzt, kann trotzdem angehakt werden und liefert Werte, sobald er wieder da ist.\n\nJeder angehakte Messwert kostet eine Abfrage pro Aktualisierung, also alle 30 Minuten. Alles lässt sich später unter *Konfigurieren* ändern.",
+        "description": "**{station}**\n\nWähle die Schadstoffe, die als Sensoren angelegt werden sollen. Das sind die Halbstundenmittelwerte, der frischeste Wert des Umweltbundesamts. Vorausgewählt ist, was die Station derzeit meldet – die Auswahl ist aber nicht darauf beschränkt: Ein Schadstoff, den die Station gerade aussetzt, kann trotzdem angehakt werden und liefert Werte, sobald er wieder da ist.\n\nJeder angehakte Wert kostet eine Abfrage pro Aktualisierung, also alle 30 Minuten. Alles lässt sich später unter *Konfigurieren* ändern.",
         "data": {
-          "measurements": "Messwerte",
-          "advanced": "Die übrigen Entitäten mit auswählen"
+          "measurements": "Schadstoffe (Aktualwert)",
+          "station_index": "Luftqualitätsindex der Station (EAQI)",
+          "advanced": "Weitere Entitäten auswählen"
         },
         "data_description": {
-          "advanced": "Teilindizes, Stationsindex und Koordinaten. Ohne Haken werden sie passend zur Auswahl oben angelegt."
+          "station_index": "Braucht NO₂ und Feinstaub. Ohne O₃ gilt die mildere EEA-Regel für Verkehrsstationen, der Index kann Ozon dann nicht berücksichtigen. Die nötigen Werte werden unabhängig von der Auswahl oben abgefragt.",
+          "advanced": "Öffnet nach dem Absenden einen weiteren Schritt: Tagesmittel, EAQI-Teilindizes je Schadstoff und Koordinaten. Ohne Haken entsteht nichts davon; nachholen lässt es sich jederzeit unter *Konfigurieren*."
         }
       },
       "extras": {
-        "title": "Die übrigen Entitäten",
-        "description": "Diese Entitäten kommen zu den Messwerten dazu.",
+        "title": "Weitere Entitäten",
+        "description": "Alles, was der vorige Schritt ausgelassen hat. Nichts davon wird gebraucht, damit die Station Werte liefert.",
         "data": {
+          "daily_means": "Tagesmittel (Vortag)",
           "indexes": "EAQI-Teilindizes",
-          "station_index": "Stationsindex (Luftqualitätsindex und Stufe)",
           "location_entity": "Koordinaten (Diagnose)"
         },
         "data_description": {
+          "daily_means": "Der abgeschlossene Vortag, nicht der laufende Tag. Vorausgewählt sind die Tagesmittel der Schadstoffe aus dem vorigen Schritt.",
           "indexes": "Ein Teilindex braucht den Aktualwert seines Schadstoffs. Der wird dafür abgefragt, auch wenn der Messwert selbst nicht ausgewählt ist.",
-          "station_index": "Braucht NO₂ und Feinstaub. Ohne O₃ gilt die mildere EEA-Regel für Verkehrsstationen, der Index kann Ozon dann nicht berücksichtigen. Die nötigen Werte werden unabhängig von der Auswahl oben abgefragt."
+          "location_entity": "Eine Entität mit den Koordinaten der Messstelle, für die Kartenkarte im Dashboard. Ohne sie lässt sich die Station nicht auf einer Karte anzeigen."
         }
       }
     },
