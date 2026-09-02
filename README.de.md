@@ -292,6 +292,19 @@ Umfang in einem Formular. Der Eintrag wird danach automatisch neu geladen.
 Aktualisierungszyklus, also alle 30 Minuten. Der Vollausbau sind 14 Abfragen pro Station,
 eine Auswahl aus zwei Werten sind zwei.
 
+**Wann abgefragt wird.** Die Quelle veröffentlicht auf einem festen Halbstundenraster, und
+jeder Eintrag fragt einmal pro veröffentlichtem Wert ab – an einer festen Position innerhalb
+des Halbstundenfensters. Die Position wird aus der ID des Eintrags abgeleitet: Sie bleibt über
+Neustarts hinweg gleich, unterscheidet sich aber zwischen den Stationen einer Installation und
+zwischen Installationen. Damit wandert der Abruf nicht langsam am Raster vorbei (und
+überspringt gelegentlich einen Halbstundenwert), und die Abfragen aller Installationen treffen
+nicht auf dieselbe Sekunde.
+
+**Der Start wartet nicht auf Messwerte.** Der Entitätsbestand kommt aus der Auswahl, der erste
+Abruf läuft daher im Hintergrund neben dem restlichen Start. Bis er ankommt, stehen die
+Sensoren auf *nicht verfügbar* – vorher hielt jeder Eintrag den Start von Home Assistant um
+die Dauer eines vollständigen Abrufs auf, rund eine halbe Minute pro Station.
+
 **Abgewählte Entitäten werden nicht gelöscht.** Sie werden nur nicht mehr angelegt und stehen
 in Home Assistant als *nicht verfügbar*. Registry-Eintrag und Langzeitstatistik bleiben
 erhalten, beim Wiederanhaken kommen sie mit derselben Entity-ID und ihrer Historie zurück.
