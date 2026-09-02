@@ -35,24 +35,28 @@ Requires Home Assistant 2026.8.0 or newer. No additional Python dependencies.
 
 Every pollutant is created twice: as the current value – the half-hourly mean, the freshest
 figure the source publishes – and as the daily mean, which is what the Austrian limit values
-refer to. The daily mean covers the running day from midnight, so it grows over the course
-of the day.
+refer to.
 
-| Pollutant | Current value | Daily mean | Unit |
+**The daily mean is the mean of the completed previous day**, not a running mean of the
+current day. It arrives shortly after midnight CET and then stays unchanged until the next
+one. Note that the source works in CET all year round, so in summer the day it covers runs
+from 01:00 to 01:00 local time.
+
+| Pollutant | Current value | Daily mean (previous day) | Unit |
 |---|---|---|---|
-| Particulate matter PM10 | Particulate matter PM10 | Particulate matter PM10 daily mean | µg/m³ |
-| Particulate matter PM2.5 | Particulate matter PM2.5 | Particulate matter PM2.5 daily mean | µg/m³ |
-| Nitrogen dioxide NO₂ | Nitrogen dioxide | Nitrogen dioxide daily mean | µg/m³ |
-| Nitrogen monoxide NO | Nitrogen monoxide | Nitrogen monoxide daily mean | µg/m³ |
-| Ozone O₃ | Ozone | Ozone daily mean | µg/m³ |
-| Sulphur dioxide SO₂ | Sulphur dioxide | Sulphur dioxide daily mean | µg/m³ |
-| Carbon monoxide CO | Carbon monoxide | Carbon monoxide daily mean | mg/m³ |
+| Particulate matter PM10 | Particulate matter PM10 | Particulate matter PM10 daily mean (previous day) | µg/m³ |
+| Particulate matter PM2.5 | Particulate matter PM2.5 | Particulate matter PM2.5 daily mean (previous day) | µg/m³ |
+| Nitrogen dioxide NO₂ | Nitrogen dioxide | Nitrogen dioxide daily mean (previous day) | µg/m³ |
+| Nitrogen monoxide NO | Nitrogen monoxide | Nitrogen monoxide daily mean (previous day) | µg/m³ |
+| Ozone O₃ | Ozone | Ozone daily mean (previous day) | µg/m³ |
+| Sulphur dioxide SO₂ | Sulphur dioxide | Sulphur dioxide daily mean (previous day) | µg/m³ |
+| Carbon monoxide CO | Carbon monoxide | Carbon monoxide daily mean (previous day) | mg/m³ |
 
 Every sensor carries the matching device class and `state_class: measurement`, so the values
 are recorded in long-term statistics. The entity ID is built from the station name and the
 sensor name in the language of the Home Assistant installation, for example
 `sensor.graz_don_bosco_particulate_matter_pm10` and
-`sensor.graz_don_bosco_particulate_matter_pm10_daily_mean`.
+`sensor.graz_don_bosco_particulate_matter_pm10_daily_mean_previous_day`.
 
 ## European Air Quality Index (EAQI)
 
@@ -109,7 +113,7 @@ can differ from the official figure – most noticeably during short peaks, whic
 hourly mean smooths out more than a half-hourly one.
 
 Every index sensor states this in its `averaging_basis` attribute. Daily means (TMW) are
-deliberately not used for the index.
+deliberately not used for the index – they describe the previous day, not the present.
 
 ### Attributes
 
@@ -167,7 +171,8 @@ automation:
 > assessment. It is a hint to look at the official figures, not a substitute for them.
 
 PM10 as a condition – the Austrian daily limit value is 50 µg/m³ as a daily mean, so the
-daily mean sensor is the right one here:
+daily mean sensor is the right one here. Keep in mind that it reports **yesterday**, so this
+reads as "yesterday was clean" rather than "the air is clean right now":
 
 ```yaml
 automation:
@@ -179,7 +184,7 @@ automation:
     conditions:
       - condition: air_quality.is_pm10_value
         target:
-          entity_id: sensor.graz_don_bosco_particulate_matter_pm10_daily_mean
+          entity_id: sensor.graz_don_bosco_particulate_matter_pm10_daily_mean_previous_day
         options:
           behavior: any
           threshold:
@@ -189,7 +194,7 @@ automation:
     actions:
       - action: notify.persistent_notification
         data:
-          message: PM10 daily mean is below 50 µg/m³ – good time to air out.
+          message: Yesterday's PM10 daily mean was below 50 µg/m³ – good time to air out.
 ```
 
 Replace the entity IDs with your own; they are built from the station name in the
@@ -258,7 +263,7 @@ search that returns more than 25 stations asks for a more specific term instead 
 them all.
 
 Only the pollutants a station actually reports are created as sensors – each one as a
-current value and as a daily mean.
+current value and as the previous day's daily mean.
 
 The user interface is available in English and German.
 
