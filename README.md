@@ -159,6 +159,38 @@ of the Home Assistant [Air Quality](https://www.home-assistant.io/integrations/a
 building block work with them directly – no helper entities needed. Thresholds are a
 matter of taste and local rules, so this integration deliberately ships none of its own.
 
+### Blueprint: notification above a threshold
+
+For the most common case – *tell me when a value goes above X* – the repository ships a
+ready-made automation. One click imports it into your installation:
+
+[![Open your Home Assistant instance and show the blueprint import dialog.][my-blueprint-badge]][my-blueprint]
+
+| Input | What it is for |
+|---|---|
+| **Sensor** | The measurement to watch. Only the numeric sensors of this integration are offered; for the index itself pick *Air quality index level* (1 to 6). |
+| **Threshold** | The value the sensor has to rise above, in the unit of that sensor. Deliberately not pre-filled – see below. |
+| **Notification** | What happens on an exceedance. Pre-filled with a persistent notification; replace it with a call of your own notification service. The variables `sensor_name`, `value`, `unit`, `threshold`, `station` and `measured_at` are available inside it. |
+| **Minimum time between two notifications** | One hour by default. A value hovering around the threshold crosses it over and over; within this period further crossings are ignored, so one exceedance stays one message. |
+
+> **No threshold is pre-filled, and that is deliberate.** The Austrian limit values,
+> information and alert thresholds are defined in the IG-L and the Ozongesetz, and every
+> one of them refers to a specific averaging period. The blueprint cannot check that the
+> sensor you pick matches the period the value is written for, and an official-looking
+> threshold applied to the wrong mean is worse than no warning at all. Look the figure up
+> in the legal text ([RIS](https://www.ris.bka.gv.at)) and pick the sensor with the
+> matching averaging period.
+
+The waiting period is a delay at the end of the automation, which runs in `single` mode:
+while it waits, further crossings find it busy and are dropped silently. Reloading the
+automations or restarting Home Assistant ends that wait early.
+
+The blueprint file is `blueprints/automation/austrian_air_quality/threshold_notification.yaml`;
+[a German version](blueprints/automation/austrian_air_quality/schwellenwert_benachrichtigung.yaml)
+of the same automation exists next to it.
+
+### Writing them by hand
+
 Ozone information threshold, 180 µg/m³:
 
 ```yaml
@@ -363,6 +395,70 @@ entities:
 All sensors of a station carry the same coordinates, so one sensor per station is enough –
 otherwise several markers end up on exactly the same spot.
 
+## Dashboard
+
+A finished view with the current readings, the station on a map and the last 24 hours.
+Open *Edit dashboard → ⋮ → Raw configuration editor*, paste the block below under `views:`
+and replace the entity IDs with your own:
+
+```yaml
+- title: Air quality
+  path: air-quality
+  icon: mdi:air-filter
+  type: sections
+  max_columns: 2
+  sections:
+    - type: grid
+      cards:
+        - type: heading
+          heading: Graz Don Bosco
+        - type: entities
+          title: Current readings
+          state_color: true
+          entities:
+            - entity: sensor.graz_don_bosco_air_quality_index
+            - entity: sensor.graz_don_bosco_particulate_matter_pm10
+            - entity: sensor.graz_don_bosco_particulate_matter_pm2_5
+            - entity: sensor.graz_don_bosco_nitrogen_dioxide
+            - entity: sensor.graz_don_bosco_ozone
+            - type: attribute
+              entity: sensor.graz_don_bosco_particulate_matter_pm10
+              attribute: measured_at
+              name: Reading from
+    - type: grid
+      cards:
+        - type: heading
+          heading: Station
+        - type: map
+          entities:
+            - sensor.graz_don_bosco_coordinates
+          theme_mode: auto
+          auto_fit: true
+    - type: grid
+      cards:
+        - type: heading
+          heading: Last 24 hours
+        - type: history-graph
+          hours_to_show: 24
+          entities:
+            - entity: sensor.graz_don_bosco_particulate_matter_pm10
+            - entity: sensor.graz_don_bosco_nitrogen_dioxide
+            - entity: sensor.graz_don_bosco_ozone
+```
+
+Notes on the three cards:
+
+- **Current readings** – the half-hourly means, with the `measured_at` attribute as the
+  last row: it says how old the figures on the card are. The daily mean sensors fit here
+  too, as long as it stays clear that they report [yesterday](#measurements).
+- **Station** – the map needs exactly one entity per station, otherwise several markers end
+  up on the same spot; see [Station on a map](#station-on-a-map).
+- **Last 24 hours** – the history graph only shows what the recorder has kept. Right after
+  setting the integration up the graph is empty and fills over the following day.
+
+Only entities that were enabled in the selection exist; delete the rows for the rest, or
+add them in *Configure*.
+
 ## Development
 
 - Domain: `austrian_air_quality` (immutable after the first release)
@@ -379,6 +475,11 @@ Assistant, so its unit tests run against a bare Python interpreter with no extra
 python -m unittest discover -s tests -v
 ```
 
+The two files under `blueprints/automation/austrian_air_quality/` are the same automation
+in two languages; only the labels may differ. `tests/test_blueprints.py` compares them and
+fails when they drift apart – it is the one test that needs PyYAML and skips itself on an
+interpreter without it.
+
 See `custom_components/austrian_air_quality/` for the source code.
 
 ## License
@@ -389,3 +490,5 @@ Apache-2.0 – see [LICENSE](LICENSE).
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
 [my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=karlrt&repository=ha-austrian-air-quality&category=integration
 [my-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
+[my-blueprint]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fkarlrt%2Fha-austrian-air-quality%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Faustrian_air_quality%2Fthreshold_notification.yaml
+[my-blueprint-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
