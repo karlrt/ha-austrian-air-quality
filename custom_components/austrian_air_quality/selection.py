@@ -150,13 +150,12 @@ def default_options(
     return {
         OPT_MEASUREMENTS: list(measurements),
         # The station index is preselected only where it can actually reach a
-        # level: the minimum data requirement asks for NO2, O3 and particulate
-        # matter at once, so a single index pollutant is not enough. Ticking it
-        # on such a station used to produce two entities that stay unknown for
-        # good. It stays one click away in the forms, which offer it either
-        # way, and an installation that already has the entity keeps it -
-        # unticking it here would drop an entity and its history over a
-        # default.
+        # level: either coverage rule will do, but a single index pollutant is
+        # not enough for either. Ticking it on such a station used to produce
+        # two entities that stay unknown for good. It stays one click away in
+        # the forms, which offer it either way, and an installation that
+        # already has the entity keeps it - unticking it here would drop an
+        # entity and its history over a default.
         OPT_STATION_INDEX: eaqi.has_minimum_data(index_pollutants)
         or KEY_STATION_INDEX in have,
         OPT_INDEXES: list(indexes),

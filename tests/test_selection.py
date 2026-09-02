@@ -163,16 +163,24 @@ class TestDefaults(unittest.TestCase):
         )
 
     def test_a_station_short_of_the_minimum_data_gets_no_station_index(self) -> None:
-        # Graz Schlossberg reports ozone alone, Graz Mitte Gries everything but
-        # ozone: both used to get two index entities that could never leave
-        # "unknown". The sub-indices they can reach stay preselected.
+        # Graz Schlossberg reports ozone alone: neither coverage rule is met,
+        # so the two index entities would never leave "unknown". The ozone
+        # sub-index it can reach stays preselected.
         ozone_only = selection.default_options(reported=["o3"])
         self.assertFalse(ozone_only[const.OPT_STATION_INDEX])
         self.assertEqual(ozone_only[const.OPT_INDEXES], ["o3_index"])
 
+    def test_a_station_without_ozone_gets_the_station_index(self) -> None:
+        # Graz Mitte Gries: no ozone, so the traffic rule applies and the index
+        # can reach a level. The preselection follows whichever rule is met.
         no_ozone = selection.default_options(reported=["pm25", "no2", "co"])
-        self.assertFalse(no_ozone[const.OPT_STATION_INDEX])
+        self.assertTrue(no_ozone[const.OPT_STATION_INDEX])
         self.assertEqual(no_ozone[const.OPT_INDEXES], ["pm25_index", "no2_index"])
+
+    def test_particulate_matter_alone_is_not_enough_for_the_station_index(self) -> None:
+        # Neither rule works without NO2.
+        defaults = selection.default_options(reported=["pm10", "pm25"])
+        self.assertFalse(defaults[const.OPT_STATION_INDEX])
 
     def test_particulate_matter_counts_as_one_group(self) -> None:
         # PM2.5 or PM10 satisfies the particulate part, neither is required.

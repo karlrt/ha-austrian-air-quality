@@ -58,7 +58,7 @@
         },
         "data_description": {
           "indexes": "A sub-index needs the current value of its pollutant. That value is fetched for it even when the measurement itself is not selected.",
-          "station_index": "Needs NO₂, O₃ and particulate matter at the same time, and stays unknown otherwise. The values it needs are fetched regardless of the selection above."
+          "station_index": "Needs NO₂ and particulate matter. Without O₃ the milder EEA rule for traffic stations applies, and the index cannot account for ozone. The values it needs are fetched regardless of the selection above."
         }
       }
     },
@@ -204,7 +204,7 @@
         },
         "data_description": {
           "measurements": "The full catalogue, not only what the station reports today.",
-          "station_index": "Needs NO₂, O₃ and particulate matter at the same time, and stays unknown otherwise."
+          "station_index": "Needs NO₂ and particulate matter. Without O₃ the milder EEA rule for traffic stations applies, and the index cannot account for ozone."
         }
       }
     }

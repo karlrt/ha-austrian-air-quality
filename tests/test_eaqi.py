@@ -151,25 +151,42 @@ class TestUnclassifiableInput(unittest.TestCase):
 
 
 class TestMinimumData(unittest.TestCase):
-    """The stricter of the two EEA minimum data rules is applied."""
+    """Both EEA coverage rules, and which one a station falls under."""
 
-    def test_no2_o3_and_pm_is_enough(self) -> None:
-        self.assertTrue(eaqi.has_minimum_data(("no2", "o3", "pm10")))
-        self.assertTrue(eaqi.has_minimum_data(("no2", "o3", "pm25")))
-        self.assertTrue(eaqi.has_minimum_data(("no2", "o3", "pm25", "pm10")))
+    def test_no2_o3_and_pm_is_the_standard_rule(self) -> None:
+        for available in (
+            ("no2", "o3", "pm10"),
+            ("no2", "o3", "pm25"),
+            ("no2", "o3", "pm25", "pm10"),
+        ):
+            with self.subTest(available=available):
+                self.assertEqual(
+                    eaqi.minimum_data_basis(available), eaqi.BASIS_STANDARD
+                )
+                self.assertTrue(eaqi.has_minimum_data(available))
 
-    def test_missing_ozone_is_not_enough(self) -> None:
-        # This is the traffic-station rule, which is not applied because the
-        # source does not publish the station type.
-        self.assertFalse(eaqi.has_minimum_data(("no2", "pm10", "pm25")))
+    def test_missing_ozone_falls_under_the_traffic_rule(self) -> None:
+        # The EEA rule for traffic stations: NO2 and particulate matter, no
+        # ozone. The source does not publish the station type, so every station
+        # short of the standard rule is measured against this one.
+        for available in (("no2", "pm10", "pm25"), ("no2", "pm25"), ("no2", "pm10")):
+            with self.subTest(available=available):
+                self.assertEqual(
+                    eaqi.minimum_data_basis(available), eaqi.BASIS_TRAFFIC
+                )
+                self.assertTrue(eaqi.has_minimum_data(available))
 
     def test_missing_no2_or_pm_is_not_enough(self) -> None:
-        self.assertFalse(eaqi.has_minimum_data(("o3", "pm10")))
-        self.assertFalse(eaqi.has_minimum_data(("no2", "o3")))
-        self.assertFalse(eaqi.has_minimum_data(()))
+        # Neither rule can do without NO2, and neither without particulate
+        # matter. Ozone does not stand in for either of them.
+        for available in (("o3", "pm10"), ("no2", "o3"), ("o3",), ()):
+            with self.subTest(available=available):
+                self.assertIsNone(eaqi.minimum_data_basis(available))
+                self.assertFalse(eaqi.has_minimum_data(available))
 
     def test_so2_alone_does_not_help(self) -> None:
-        self.assertFalse(eaqi.has_minimum_data(("no2", "o3", "so2")))
+        self.assertIsNone(eaqi.minimum_data_basis(("no2", "o3", "so2")))
+        self.assertIsNone(eaqi.minimum_data_basis(("o3", "so2")))
 
 
 class TestStationIndex(unittest.TestCase):
@@ -182,6 +199,7 @@ class TestStationIndex(unittest.TestCase):
         self.assertEqual(result.level, "very_poor")
         self.assertEqual(result.dominant_pollutant, "o3")
         self.assertEqual(result.number, 5)
+        self.assertEqual(result.basis, eaqi.BASIS_STANDARD)
         self.assertTrue(result.complete)
 
     def test_all_good_stays_good(self) -> None:
@@ -227,38 +245,75 @@ class TestStationIndex(unittest.TestCase):
         self.assertIsNone(result.level)
         self.assertIsNone(result.number)
         self.assertIsNone(result.dominant_pollutant)
+        self.assertIsNone(result.basis)
         self.assertFalse(result.complete)
         self.assertEqual(result.pollutants_used, ("o3",))
 
-    def test_incomplete_never_falls_back_to_the_best_value(self) -> None:
-        # Good particulate matter and no ozone must not produce "good".
-        result = eaqi.station_index({"pm25": 1, "pm10": 1, "no2": 1})
-        self.assertIsNone(result.level)
-        self.assertNotEqual(result.level, "good")
+    def test_a_station_without_ozone_gets_the_traffic_rule_index(self) -> None:
+        # The Graz Mitte Gries case: PM2.5 and NO2, no ozone. The index exists,
+        # is built on the traffic rule, and says so.
+        result = eaqi.station_index({"pm25": 20, "no2": 5})
+        self.assertEqual(result.level, "moderate")
+        self.assertEqual(result.dominant_pollutant, "pm25")
+        self.assertEqual(result.basis, eaqi.BASIS_TRAFFIC)
         self.assertFalse(result.complete)
 
-    def test_incomplete_never_falls_back_to_the_worst_value(self) -> None:
-        result = eaqi.station_index({"pm25": 500, "no2": 500})
+    def test_the_traffic_rule_index_is_marked_incomplete(self) -> None:
+        # "There is a level" and "all three groups were there" are different
+        # questions, and index_complete answers the second one.
+        complete = eaqi.station_index({"pm25": 1, "o3": 1, "no2": 1})
+        self.assertEqual(complete.basis, eaqi.BASIS_STANDARD)
+        self.assertTrue(complete.complete)
+
+        partial = eaqi.station_index({"pm25": 1, "no2": 1})
+        self.assertIsNotNone(partial.level)
+        self.assertFalse(partial.complete)
+
+    def test_sulphur_dioxide_can_still_win_under_the_traffic_rule(self) -> None:
+        # The rules govern coverage, not which sub-index may be the worst.
+        result = eaqi.station_index({"pm25": 1, "no2": 1, "so2": 300})
+        self.assertEqual(result.level, "extremely_poor")
+        self.assertEqual(result.dominant_pollutant, "so2")
+        self.assertEqual(result.basis, eaqi.BASIS_TRAFFIC)
+
+    def test_without_particulate_matter_there_is_no_index(self) -> None:
+        # Good ozone and NO2 must not produce "good" while PM is missing:
+        # neither rule can do without particulate matter.
+        result = eaqi.station_index({"o3": 1, "no2": 1})
         self.assertIsNone(result.level)
+        self.assertIsNone(result.basis)
         self.assertFalse(result.complete)
+
+    def test_without_no2_there_is_no_index(self) -> None:
+        result = eaqi.station_index({"pm25": 500, "pm10": 500, "o3": 500})
+        self.assertIsNone(result.level)
+        self.assertIsNone(result.basis)
 
     def test_negative_reading_removes_the_pollutant_from_the_index(self) -> None:
-        # A negative ozone reading leaves the minimum data requirement unmet
-        # rather than being treated as a good ozone value.
+        # A negative ozone reading is not a good ozone value: it drops out, and
+        # what is left decides which rule applies.
         result = eaqi.station_index({"pm25": 3, "o3": -0.5, "no2": 5})
-        self.assertIsNone(result.level)
+        self.assertEqual(result.basis, eaqi.BASIS_TRAFFIC)
         self.assertFalse(result.complete)
         self.assertEqual(result.pollutants_used, ("pm25", "no2"))
+
+        # The same for particulate matter, where nothing is left to fall back
+        # on and the index disappears altogether.
+        gone = eaqi.station_index({"pm25": -0.5, "o3": 10, "no2": 5})
+        self.assertIsNone(gone.level)
+        self.assertIsNone(gone.basis)
 
     def test_empty_input(self) -> None:
         result = eaqi.station_index({})
         self.assertIsNone(result.level)
+        self.assertIsNone(result.basis)
         self.assertFalse(result.complete)
         self.assertEqual(result.pollutants_used, ())
 
     def test_only_non_index_pollutants(self) -> None:
         result = eaqi.station_index({"co": 0.3, "no": 24})
         self.assertIsNone(result.level)
+        self.assertIsNone(result.basis)
         self.assertFalse(result.complete)
         self.assertEqual(result.pollutants_used, ())
 

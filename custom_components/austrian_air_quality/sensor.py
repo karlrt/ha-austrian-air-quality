@@ -28,6 +28,7 @@ from .const import (
     ATTR_ALTITUDE,
     ATTR_AVERAGING_BASIS,
     ATTR_DOMINANT_POLLUTANT,
+    ATTR_INDEX_BASIS,
     ATTR_INDEX_COMPLETE,
     ATTR_LOCATION,
     ATTR_MEASURED_AT,
@@ -381,11 +382,17 @@ class AustrianAirQualityStationIndexSensor(AustrianAirQualityIndexBase):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """What went into the index and whether it is complete."""
+        """What went into the index, on which rule, and whether it is complete.
+
+        ``index_basis`` is the one to read before trusting a level: on
+        ``traffic_rule`` the station reports no ozone, so the level cannot
+        account for it.
+        """
         attributes = super().extra_state_attributes
         result = eaqi.station_index(self._index_values)
         attributes[ATTR_DOMINANT_POLLUTANT] = result.dominant_pollutant
         attributes[ATTR_POLLUTANTS_USED] = list(result.pollutants_used)
+        attributes[ATTR_INDEX_BASIS] = result.basis
         attributes[ATTR_INDEX_COMPLETE] = result.complete
         return attributes
 

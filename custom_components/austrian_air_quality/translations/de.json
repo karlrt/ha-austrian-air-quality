@@ -58,7 +58,7 @@
         },
         "data_description": {
           "indexes": "Ein Teilindex braucht den Aktualwert seines Schadstoffs. Der wird dafür abgefragt, auch wenn der Messwert selbst nicht ausgewählt ist.",
-          "station_index": "Braucht NO₂, O₃ und Feinstaub gleichzeitig, sonst bleibt er unbekannt. Die nötigen Werte werden unabhängig von der Auswahl oben abgefragt."
+          "station_index": "Braucht NO₂ und Feinstaub. Ohne O₃ gilt die mildere EEA-Regel für Verkehrsstationen, der Index kann Ozon dann nicht berücksichtigen. Die nötigen Werte werden unabhängig von der Auswahl oben abgefragt."
         }
       }
     },
@@ -204,7 +204,7 @@
         },
         "data_description": {
           "measurements": "Der vollständige Katalog, nicht nur das, was die Station heute meldet.",
-          "station_index": "Braucht NO₂, O₃ und Feinstaub gleichzeitig, sonst bleibt er unbekannt."
+          "station_index": "Braucht NO₂ und Feinstaub. Ohne O₃ gilt die mildere EEA-Regel für Verkehrsstationen, der Index kann Ozon dann nicht berücksichtigen."
         }
       }
     }

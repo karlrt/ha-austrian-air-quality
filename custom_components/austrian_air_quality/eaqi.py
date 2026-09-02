@@ -14,6 +14,17 @@ The same page states the two rules this module implements on top of the bands:
 the index "corresponds to the poorest level for any of the five pollutants",
 and hourly concentrations are what the levels are defined on.
 
+Minimum data
+------------
+The EEA publishes two coverage rules: NO2, O3 and particulate matter at
+background and industrial stations, and NO2 and particulate matter alone at
+traffic stations. The data source does not publish the station type, so a
+station that falls short of the first rule is measured against the second one
+rather than left without an index. Which rule produced a level is not hidden:
+every result carries the ``basis`` it was built on, the entities report it as
+the ``index_basis`` attribute, and ``complete`` stays reserved for the full
+three-group coverage. See :func:`minimum_data_basis` for what that costs.
+
 The EEA is explicit that the index "is not a tool for checking compliance with
 air quality standards and cannot be used for this purpose".
 
@@ -74,6 +85,11 @@ EAQI_POLLUTANTS: Final[tuple[str, ...]] = (
 # Particulate matter counts as present when either fraction is available.
 PM_POLLUTANTS: Final[tuple[str, ...]] = (EAQI_PM25, EAQI_PM10)
 
+# Which of the two EEA coverage rules a station index was built on. These are
+# entity attribute values, so they are English and stable.
+BASIS_STANDARD: Final = "standard"
+BASIS_TRAFFIC: Final = "traffic_rule"
+
 # Upper bound of every band in µg/m³, in the order of LEVELS. The published
 # table lists whole numbers with gaps (PM2.5 "0-5" then "6-15"); the bounds
 # below are read as inclusive upper limits of a continuous scale, so a value
@@ -100,14 +116,26 @@ class StationIndex:
     """Result of aggregating the sub-indices of one station.
 
     ``level`` is ``None`` whenever the index must not be shown: either no
-    pollutant could be classified at all, or the minimum data requirement is
-    not met. It is never quietly replaced by the best available sub-index.
+    pollutant could be classified at all, or neither coverage rule is met. It
+    is never quietly replaced by the best available sub-index.
+
+    ``basis`` names the rule the level was built on, and is ``None`` exactly
+    when there is no level.
     """
 
     level: str | None
     dominant_pollutant: str | None
     pollutants_used: tuple[str, ...]
-    complete: bool
+    basis: str | None
+
+    @property
+    def complete(self) -> bool:
+        """Whether all three groups the standard rule asks for were there.
+
+        Deliberately not the same question as "is there a level": an index
+        built on the traffic-station rule has one and is still incomplete.
+        """
+        return self.basis == BASIS_STANDARD
 
     @property
     def number(self) -> int | None:
@@ -157,40 +185,57 @@ def sub_indices(values: Mapping[str, float | None]) -> dict[str, str]:
     return result
 
 
-def has_minimum_data(pollutants: Mapping[str, str] | tuple[str, ...]) -> bool:
-    """Whether the EEA minimum data requirement is met.
+def minimum_data_basis(
+    pollutants: Mapping[str, str] | tuple[str, ...],
+) -> str | None:
+    """Which EEA coverage rule these pollutants satisfy, best one first.
 
-    The EEA asks for NO2, O3 and particulate matter at background and
-    industrial stations, and for NO2 and particulate matter at traffic
-    stations. The data source does not publish the station type, so the
-    stricter of the two rules is applied throughout, and the station index of
-    a traffic station may stay unknown where the EEA would still publish one.
+    ``BASIS_STANDARD`` needs NO2, O3 and particulate matter, and is the rule
+    for background and industrial stations. ``BASIS_TRAFFIC`` needs NO2 and
+    particulate matter, and is the rule the EEA applies at traffic stations.
+    ``None`` means neither is met and there must be no index.
+
+    The data source does not publish the station type, so a station without
+    ozone cannot be told apart from a traffic station and is measured against
+    the traffic rule. That is a deliberate trade: it gives an index to the
+    many stations that measure no ozone, and it can read too optimistically at
+    a background station in summer, when ozone is often the pollutant that
+    would have decided the level. ``BASIS_TRAFFIC`` in the result is what makes
+    that visible, and it is why ``complete`` keeps meaning the full coverage.
     """
     available = set(pollutants)
-    return (
-        EAQI_NO2 in available
-        and EAQI_O3 in available
-        and bool(available.intersection(PM_POLLUTANTS))
-    )
+    if EAQI_NO2 not in available or not available.intersection(PM_POLLUTANTS):
+        return None
+    return BASIS_STANDARD if EAQI_O3 in available else BASIS_TRAFFIC
+
+
+def has_minimum_data(pollutants: Mapping[str, str] | tuple[str, ...]) -> bool:
+    """Whether either coverage rule is met, and an index may be published."""
+    return minimum_data_basis(pollutants) is not None
 
 
 def station_index(values: Mapping[str, float | None]) -> StationIndex:
     """Aggregate the pollutant values of one station into its index.
 
-    The station index is the worst of the sub-indices, and only exists once the
-    minimum data requirement is met. Falling short of it yields a result
+    The station index is the worst of the sub-indices, and only exists once one
+    of the two coverage rules is met. Falling short of both yields a result
     without a level, which still reports the sub-indices that were found.
+
+    An index built on the traffic-station rule is the worst of what is there,
+    ozone included when ozone happens to be there without NO2 or particulate
+    matter having decided the rule - the rules govern coverage, not which
+    sub-indices are allowed to win.
     """
     levels = sub_indices(values)
     used = tuple(pollutant for pollutant in EAQI_POLLUTANTS if pollutant in levels)
-    complete = has_minimum_data(levels)
+    basis = minimum_data_basis(levels)
 
-    if not complete or not used:
+    if basis is None or not used:
         return StationIndex(
             level=None,
             dominant_pollutant=None,
             pollutants_used=used,
-            complete=complete,
+            basis=None,
         )
 
     # Worst level wins. EAQI_POLLUTANTS decides ties, because max() keeps the
@@ -200,5 +245,5 @@ def station_index(values: Mapping[str, float | None]) -> StationIndex:
         level=levels[dominant],
         dominant_pollutant=dominant,
         pollutants_used=used,
-        complete=True,
+        basis=basis,
     )
