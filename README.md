@@ -33,9 +33,10 @@ Requires Home Assistant 2026.8.0 or newer. No additional Python dependencies.
 
 ## Measurements
 
-Every pollutant is created twice: as the current value – the half-hourly mean, the freshest
+Every pollutant is available twice: as the current value – the half-hourly mean, the freshest
 figure the source publishes – and as the daily mean, which is what the Austrian limit values
-refer to.
+refer to. Which of them actually become sensors is decided by the selection during setup, see
+[Choosing what to track](#choosing-what-to-track).
 
 **The daily mean is the mean of the completed previous day**, not a running mean of the
 current day. It arrives shortly after midnight CET and then stays unchanged until the next
@@ -262,15 +263,49 @@ reports, before the entry is created. Stations that are already configured are h
 search that returns more than 25 stations asks for a more specific term instead of listing
 them all.
 
-Only the pollutants a station actually reports are created as sensors – each one as a
-current value and as the previous day's daily mean.
-
 The user interface is available in English and German.
+
+### Choosing what to track
+
+The detail view is followed by the measurement selection. What is offered is always the full
+catalogue – seven pollutants times two averaging periods – with whatever the station is
+reporting at that moment ticked. The difference matters: a pollutant the station happens to
+be skipping while the entry is being created can be ticked all the same, and starts
+delivering as soon as it is back.
+
+The switch *Choose the other entities as well* opens a second step with the EAQI sub-indices,
+the station index and the coordinates entity. Left unticked, they are created to match the
+measurement selection.
+
+Everything can be changed afterwards through *Configure* on the entry, where the full extent
+sits in a single form. The entry is reloaded automatically afterwards.
+
+**What the selection costs.** Every ticked measurement is one request per update cycle, so
+every 30 minutes. The full set is 14 requests per station; a selection of two values is two.
+
+**Unticked entities are not deleted.** They are simply no longer created and show up in Home
+Assistant as *unavailable*. The registry entry and the long-term statistics stay, and ticking
+them again brings them back with the same entity ID and their history. Getting rid of them
+for good is a deliberate delete in Home Assistant – which takes the history with it.
+
+**The station index needs more than its own entity.** It is built from NO₂, O₃ and
+particulate matter, all three at once. While it is selected, the values it needs are fetched
+even when the matching measurement sensors are not. Unticking a measurement therefore costs
+its entity, but never quietly empties the index. The same holds for the sub-indices.
+
+**The set of entities depends on the selection alone** – not on what the station happened to
+report at the moment the entry was created or Home Assistant last restarted. A gap in the
+data leaves a sensor *unavailable* for a while and it carries on by itself afterwards; before
+this, it disappeared for good and only came back when the entry was reloaded.
+
+Existing entries are given a selection automatically when they update: everything they
+already have, plus everything their station reports on the first fetch afterwards. Nothing is
+lost, and a sensor that went missing through such a gap comes back.
 
 ## Station on a map
 
-Each station also gets a **Coordinates** diagnostic entity whose state shows the position as
-`47.06695, 15.44226`. It appears on the device page under *Diagnostic* and is the entity to
+Each station also gets a **Coordinates** diagnostic entity – when it is enabled in the
+selection – whose state shows the position as `47.06695, 15.44226`. It appears on the device page under *Diagnostic* and is the entity to
 put on a map card, since there is exactly one per station.
 
 Every sensor – the coordinates entity included – exposes the station metadata as state

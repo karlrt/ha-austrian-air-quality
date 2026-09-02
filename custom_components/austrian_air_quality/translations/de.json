@@ -32,9 +32,33 @@
         "title": "Messstation prüfen",
         "description": "**{station}**\n\nAdresse: {address}\n\nBetreiber: {owner}\n\nEntfernung: {distance}\n\nDiese Messwerte liefert die Station derzeit. Jeder davon wird als zwei Sensoren angelegt, aktueller Wert und Tagesmittel des Vortags:\n\n| Messwert | Aktuell | Zeitpunkt |\n| --- | --- | --- |\n{measurements}",
         "menu_options": {
-          "confirm": "Diese Messstation hinzufügen",
+          "confirm": "Weiter zur Auswahl der Messwerte",
           "station": "Andere Messstation wählen",
           "user": "Neue Suche starten"
+        }
+      },
+      "confirm": {
+        "title": "Messwerte auswählen",
+        "description": "**{station}**\n\nWähle die Messwerte, die als Sensoren angelegt werden sollen. Vorausgewählt ist, was die Station derzeit meldet – die Auswahl ist aber nicht darauf beschränkt: Ein Schadstoff, den die Station gerade aussetzt, kann trotzdem angehakt werden und liefert Werte, sobald er wieder da ist.\n\nJeder angehakte Messwert kostet eine Abfrage pro Aktualisierung, also alle 30 Minuten. Alles lässt sich später unter *Konfigurieren* ändern.",
+        "data": {
+          "measurements": "Messwerte",
+          "advanced": "Die übrigen Entitäten mit auswählen"
+        },
+        "data_description": {
+          "advanced": "Teilindizes, Stationsindex und Koordinaten. Ohne Haken werden sie passend zur Auswahl oben angelegt."
+        }
+      },
+      "extras": {
+        "title": "Die übrigen Entitäten",
+        "description": "Diese Entitäten kommen zu den Messwerten dazu.",
+        "data": {
+          "indexes": "EAQI-Teilindizes",
+          "station_index": "Stationsindex (Luftqualitätsindex und Stufe)",
+          "location_entity": "Koordinaten (Diagnose)"
+        },
+        "data_description": {
+          "indexes": "Ein Teilindex braucht den Aktualwert seines Schadstoffs. Der wird dafür abgefragt, auch wenn der Messwert selbst nicht ausgewählt ist.",
+          "station_index": "Braucht NO₂, O₃ und Feinstaub gleichzeitig, sonst bleibt er unbekannt. Die nötigen Werte werden unabhängig von der Auswahl oben abgefragt."
         }
       }
     },
@@ -164,6 +188,53 @@
       },
       "station_location": {
         "name": "Koordinaten"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Auswahl ändern",
+        "description": "**{station}**\n\nWas diese Station als Entitäten liefert. Abgewählte Entitäten werden nicht gelöscht: Sie bleiben samt Historie in der Registry und kommen beim Wiederanhaken unverändert zurück.\n\nJeder angehakte Messwert kostet eine Abfrage pro Aktualisierung, also alle 30 Minuten.",
+        "data": {
+          "measurements": "Messwerte",
+          "indexes": "EAQI-Teilindizes",
+          "station_index": "Stationsindex (Luftqualitätsindex und Stufe)",
+          "location_entity": "Koordinaten (Diagnose)"
+        },
+        "data_description": {
+          "measurements": "Der vollständige Katalog, nicht nur das, was die Station heute meldet.",
+          "station_index": "Braucht NO₂, O₃ und Feinstaub gleichzeitig, sonst bleibt er unbekannt."
+        }
+      }
+    }
+  },
+  "selector": {
+    "measurements": {
+      "options": {
+        "pm10": "Feinstaub PM10 – Aktualwert",
+        "pm10_daily": "Feinstaub PM10 – Tagesmittel (Vortag)",
+        "pm25": "Feinstaub PM2.5 – Aktualwert",
+        "pm25_daily": "Feinstaub PM2.5 – Tagesmittel (Vortag)",
+        "no2": "Stickstoffdioxid – Aktualwert",
+        "no2_daily": "Stickstoffdioxid – Tagesmittel (Vortag)",
+        "no": "Stickstoffmonoxid – Aktualwert",
+        "no_daily": "Stickstoffmonoxid – Tagesmittel (Vortag)",
+        "o3": "Ozon – Aktualwert",
+        "o3_daily": "Ozon – Tagesmittel (Vortag)",
+        "so2": "Schwefeldioxid – Aktualwert",
+        "so2_daily": "Schwefeldioxid – Tagesmittel (Vortag)",
+        "co": "Kohlenmonoxid – Aktualwert",
+        "co_daily": "Kohlenmonoxid – Tagesmittel (Vortag)"
+      }
+    },
+    "indexes": {
+      "options": {
+        "pm25_index": "PM2.5 Teilindex",
+        "pm10_index": "PM10 Teilindex",
+        "o3_index": "Ozon Teilindex",
+        "no2_index": "Stickstoffdioxid Teilindex",
+        "so2_index": "Schwefeldioxid Teilindex"
       }
     }
   }
