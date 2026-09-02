@@ -107,6 +107,11 @@ Für Verkehrsstationen verlangt die EEA weniger, aber die Datenquelle veröffent
 Stationstyp nicht – deshalb gilt durchgängig die strengere Regel. Das Attribut
 `index_complete` macht das sichtbar.
 
+Deshalb ist der Stationsindex beim Einrichten nicht vorausgewählt, wenn die Station die
+Mindestdatenlage nicht erfüllt – zwei Entitäten, die nie aus `unknown` herauskommen, sind
+weniger wert als ihr Fehlen. Anhaken lässt er sich im Formular trotzdem, und ein Eintrag,
+der die Entität schon hat, behält sie.
+
 ### Mittelungszeitraum – eine Näherung
 
 **Der EAQI ist auf Stundenmittelwerten definiert. Diese Integration verwendet

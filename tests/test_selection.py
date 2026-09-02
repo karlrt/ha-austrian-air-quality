@@ -148,12 +148,48 @@ class TestDefaults(unittest.TestCase):
         defaults = selection.default_options(reported=["o3", "o3_daily"])
         self.assertEqual(defaults[const.OPT_MEASUREMENTS], ["o3", "o3_daily"])
         self.assertEqual(defaults[const.OPT_INDEXES], ["o3_index"])
-        self.assertTrue(defaults[const.OPT_STATION_INDEX])
 
     def test_a_station_without_index_pollutants_gets_no_index(self) -> None:
         defaults = selection.default_options(reported=["co", "no"])
         self.assertEqual(defaults[const.OPT_INDEXES], [])
         self.assertFalse(defaults[const.OPT_STATION_INDEX])
+
+    def test_the_station_index_is_preselected_where_it_can_have_a_level(self) -> None:
+        defaults = selection.default_options(reported=["no2", "o3", "pm10"])
+        self.assertTrue(defaults[const.OPT_STATION_INDEX])
+        self.assertTrue(
+            eaqi.has_minimum_data(("no2", "o3", "pm10")),
+            "the preselection has to follow the minimum data requirement",
+        )
+
+    def test_a_station_short_of_the_minimum_data_gets_no_station_index(self) -> None:
+        # Graz Schlossberg reports ozone alone, Graz Mitte Gries everything but
+        # ozone: both used to get two index entities that could never leave
+        # "unknown". The sub-indices they can reach stay preselected.
+        ozone_only = selection.default_options(reported=["o3"])
+        self.assertFalse(ozone_only[const.OPT_STATION_INDEX])
+        self.assertEqual(ozone_only[const.OPT_INDEXES], ["o3_index"])
+
+        no_ozone = selection.default_options(reported=["pm25", "no2", "co"])
+        self.assertFalse(no_ozone[const.OPT_STATION_INDEX])
+        self.assertEqual(no_ozone[const.OPT_INDEXES], ["pm25_index", "no2_index"])
+
+    def test_particulate_matter_counts_as_one_group(self) -> None:
+        # PM2.5 or PM10 satisfies the particulate part, neither is required.
+        for particulate in ("pm25", "pm10"):
+            with self.subTest(particulate=particulate):
+                defaults = selection.default_options(
+                    reported=["no2", "o3", particulate]
+                )
+                self.assertTrue(defaults[const.OPT_STATION_INDEX])
+
+    def test_an_existing_station_index_survives_the_stricter_default(self) -> None:
+        # An installation that already carries the entity keeps it: a default
+        # must not drop an entity and its history behind the user's back.
+        defaults = selection.default_options(
+            reported=["o3"], existing=["o3", const.KEY_STATION_INDEX]
+        )
+        self.assertTrue(defaults[const.OPT_STATION_INDEX])
 
     def test_an_existing_entity_survives_a_station_that_pauses(self) -> None:
         # Graz Sued Tiergartenweg, 2026-09-01: the sulphur dioxide sensor had

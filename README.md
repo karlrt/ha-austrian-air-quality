@@ -106,6 +106,11 @@ The EEA asks for less at traffic stations, but the data source does not publish 
 station type, so the stricter rule is applied throughout. The `index_complete` attribute
 makes this visible.
 
+Because of that, a station that falls short of the requirement does not get the station
+index ticked when the entry is created – two entities that could never leave `unknown` are
+worth less than their absence. It stays one click away in the form, and an entry that
+already has the entity keeps it.
+
 ### Averaging period – an approximation
 
 **The EAQI is defined on hourly means. This integration uses half-hourly means (HMW),**
