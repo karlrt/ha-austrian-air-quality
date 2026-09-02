@@ -88,6 +88,12 @@ POLLUTANTS: Final[tuple[str, ...]] = (
 # Averaging periods every pollutant is fetched for. The half-hour mean is the
 # freshest value the source publishes and therefore carries the plain pollutant
 # key; the daily mean is what the Austrian limit values refer to.
+#
+# TMW is the mean of the *completed previous* calendar day, not a running mean
+# of the current day. Verified 2026-09-02: TMW carries the timestamp of the day
+# boundary (00:00) and stays constant all day, while MW24 carries the current
+# hour and moves with it. The day is a CET day (UTC+1 year round), so in summer
+# it runs 01:00 to 01:00 local time.
 MEANTYPE_CURRENT: Final = "current"
 MEANTYPE_DAILY: Final = "daily"
 

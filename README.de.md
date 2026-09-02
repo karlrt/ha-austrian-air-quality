@@ -36,24 +36,28 @@ Benötigt Home Assistant 2026.8.0 oder neuer. Keine zusätzlichen Python-Abhäng
 
 Jeder Schadstoff wird zweifach angelegt: als aktueller Wert – der Halbstundenmittelwert, der
 frischeste Wert der Datenquelle – und als Tagesmittelwert, auf den sich die österreichischen
-Grenzwerte beziehen. Das Tagesmittel umfasst den laufenden Tag ab Mitternacht und wächst
-daher im Lauf des Tages mit.
+Grenzwerte beziehen.
 
-| Schadstoff | Aktueller Wert | Tagesmittel | Einheit |
+**Das Tagesmittel ist der Wert des abgeschlossenen Vortags**, kein laufendes Mittel des
+aktuellen Tages. Es trifft kurz nach Mitternacht MEZ ein und bleibt dann bis zum nächsten
+unverändert. Die Datenquelle rechnet ganzjährig in MEZ, im Sommer umfasst der Tag also
+01:00 bis 01:00 Ortszeit.
+
+| Schadstoff | Aktueller Wert | Tagesmittel (Vortag) | Einheit |
 |---|---|---|---|
-| Feinstaub PM10 | Feinstaub PM10 | Feinstaub PM10 Tagesmittel | µg/m³ |
-| Feinstaub PM2.5 | Feinstaub PM2.5 | Feinstaub PM2.5 Tagesmittel | µg/m³ |
-| Stickstoffdioxid NO₂ | Stickstoffdioxid | Stickstoffdioxid Tagesmittel | µg/m³ |
-| Stickstoffmonoxid NO | Stickstoffmonoxid | Stickstoffmonoxid Tagesmittel | µg/m³ |
-| Ozon O₃ | Ozon | Ozon Tagesmittel | µg/m³ |
-| Schwefeldioxid SO₂ | Schwefeldioxid | Schwefeldioxid Tagesmittel | µg/m³ |
-| Kohlenmonoxid CO | Kohlenmonoxid | Kohlenmonoxid Tagesmittel | mg/m³ |
+| Feinstaub PM10 | Feinstaub PM10 | Feinstaub PM10 Tagesmittel (Vortag) | µg/m³ |
+| Feinstaub PM2.5 | Feinstaub PM2.5 | Feinstaub PM2.5 Tagesmittel (Vortag) | µg/m³ |
+| Stickstoffdioxid NO₂ | Stickstoffdioxid | Stickstoffdioxid Tagesmittel (Vortag) | µg/m³ |
+| Stickstoffmonoxid NO | Stickstoffmonoxid | Stickstoffmonoxid Tagesmittel (Vortag) | µg/m³ |
+| Ozon O₃ | Ozon | Ozon Tagesmittel (Vortag) | µg/m³ |
+| Schwefeldioxid SO₂ | Schwefeldioxid | Schwefeldioxid Tagesmittel (Vortag) | µg/m³ |
+| Kohlenmonoxid CO | Kohlenmonoxid | Kohlenmonoxid Tagesmittel (Vortag) | mg/m³ |
 
 Jeder Sensor trägt die passende Device Class und `state_class: measurement`, die Werte landen
 also in der Langzeitstatistik. Die Entity-ID entsteht aus Stationsname und Sensorname in der
 Sprache der Home-Assistant-Installation, zum Beispiel
 `sensor.graz_don_bosco_feinstaub_pm10` und
-`sensor.graz_don_bosco_feinstaub_pm10_tagesmittel`.
+`sensor.graz_don_bosco_feinstaub_pm10_tagesmittel_vortag`.
 
 ## Europäischer Luftqualitätsindex (EAQI)
 
@@ -109,7 +113,8 @@ eine Näherung und kann vom offiziellen Wert abweichen – am ehesten bei kurzen
 ein Stundenmittel stärker glättet als ein Halbstundenmittel.
 
 Jeder Index-Sensor weist das im Attribut `averaging_basis` aus. Tagesmittelwerte (TMW)
-werden für den Index bewusst nicht herangezogen.
+werden für den Index bewusst nicht herangezogen – sie beschreiben den Vortag, nicht die
+Gegenwart.
 
 ### Attribute
 
@@ -169,7 +174,9 @@ automation:
 > dafür.
 
 PM10 als Bedingung – der österreichische Grenzwert von 50 µg/m³ bezieht sich auf den
-Tagesmittelwert, deshalb ist hier der Tagesmittel-Sensor der richtige:
+Tagesmittelwert, deshalb ist hier der Tagesmittel-Sensor der richtige. Zu bedenken: Der
+Sensor meldet **gestern**, die Automatisierung liest sich also als „gestern war es sauber"
+und nicht als „die Luft ist gerade sauber":
 
 ```yaml
 automation:
@@ -181,7 +188,7 @@ automation:
     conditions:
       - condition: air_quality.is_pm10_value
         target:
-          entity_id: sensor.graz_don_bosco_feinstaub_pm10_tagesmittel
+          entity_id: sensor.graz_don_bosco_feinstaub_pm10_tagesmittel_vortag
         options:
           behavior: any
           threshold:
@@ -191,7 +198,7 @@ automation:
     actions:
       - action: notify.persistent_notification
         data:
-          message: PM10-Tagesmittel unter 50 µg/m³ – guter Zeitpunkt zum Lüften.
+          message: PM10-Tagesmittel von gestern unter 50 µg/m³ – guter Zeitpunkt zum Lüften.
 ```
 
 Die Entity-IDs sind durch die eigenen zu ersetzen; sie entstehen aus dem Stationsnamen in
@@ -263,7 +270,7 @@ ausgeblendet. Liefert eine Suche mehr als 25 Stationen, wird statt der Liste ein
 Suchbegriff verlangt.
 
 Es werden nur die Schadstoffe als Sensoren angelegt, die die Station tatsächlich liefert –
-jeder davon als aktueller Wert und als Tagesmittel.
+jeder davon als aktueller Wert und als Tagesmittel des Vortags.
 
 Die Benutzeroberfläche gibt es auf Deutsch und Englisch.
 
