@@ -525,8 +525,15 @@ class AustrianAirQualityConfigFlow(ConfigFlow, domain=DOMAIN):
             self._prefetch = None
             self._prefetch_for = None
 
-    async def async_remove(self) -> None:
-        """Clean up when the flow is abandoned."""
+    @callback
+    def async_remove(self) -> None:
+        """Clean up when the flow is abandoned.
+
+        Deliberately synchronous despite the name: Home Assistant calls this
+        hook without awaiting it, so a coroutine would only be created and
+        dropped, and the prefetch would keep running until it finished by
+        itself.
+        """
         self._cancel_prefetch()
 
     def _distances_from_home(
