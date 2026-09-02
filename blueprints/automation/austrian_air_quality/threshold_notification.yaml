@@ -1,0 +1,117 @@
+blueprint:
+  name: Austrian Air Quality – notification above a threshold
+  description: >-
+    Notifies when a sensor of the Luftqualität Österreich integration rises
+    above a threshold.
+
+
+    **The threshold is deliberately not pre-filled.** Austrian limit values,
+    information and alert thresholds are defined in the IG-L and the
+    Ozongesetz, and every one of them refers to a specific averaging period –
+    a one-hour mean, a daily mean, a three-hour mean. This blueprint cannot
+    check that the sensor you pick matches the averaging period the value in
+    question is written for. Look the number up in the legal text (RIS,
+    https://www.ris.bka.gv.at) and pick the sensor with the matching averaging
+    period; a threshold that looks official but is applied to the wrong mean is
+    worse than no warning at all.
+
+
+    Two properties of the integration's sensors are worth knowing here: the
+    plain pollutant sensors are half-hourly means (HMW), the freshest figure
+    the Environment Agency publishes, and the "daily mean" sensors report the
+    *completed previous day*, not a running mean of today.
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  source_url: https://github.com/karlrt/ha-austrian-air-quality/blob/main/blueprints/automation/austrian_air_quality/threshold_notification.yaml
+  input:
+    sensor:
+      name: Sensor
+      description: >-
+        The measurement to watch. Only numeric sensors of this integration are
+        offered; the index sensor with the text state ("Good", "Fair", …) is
+        not among them, since it cannot be compared with a number. Use the
+        "Air quality index level" sensor (1 to 6) if you want to watch the
+        index itself.
+      selector:
+        entity:
+          filter:
+            - integration: austrian_air_quality
+              domain: sensor
+              device_class:
+                - pm10
+                - pm25
+                - nitrogen_dioxide
+                - nitrogen_monoxide
+                - ozone
+                - sulphur_dioxide
+                - carbon_monoxide
+                - aqi
+    threshold:
+      name: Threshold
+      description: >-
+        The value the sensor has to rise above, in the unit of that sensor:
+        µg/m³ for every pollutant except carbon monoxide, which is mg/m³, and
+        1 to 6 for the index level. No default on purpose – see the note above.
+      selector:
+        number:
+          min: 0
+          max: 2000
+          step: 0.1
+          mode: box
+    notification:
+      name: Notification
+      description: >-
+        What to do when the threshold is exceeded. The pre-filled action
+        writes a persistent notification; replace it with a call of your own
+        notification service to get the message on your phone.
+
+
+        These variables are available in the action: `sensor_entity`,
+        `sensor_name`, `value`, `unit`, `threshold`, `station` (the address of
+        the measuring station) and `measured_at` (time of the reading).
+      default:
+        - action: notify.persistent_notification
+          data:
+            title: Air quality threshold exceeded
+            message: >-
+              {{ sensor_name }}: {{ value }} {{ unit }} – above the threshold
+              of {{ threshold }} {{ unit }}. Reading from {{ measured_at }}.
+      selector:
+        action: {}
+    cooldown:
+      name: Minimum time between two notifications
+      description: >-
+        A value hovering around the threshold crosses it again and again. For
+        this long after a notification, further crossings are ignored, so one
+        exceedance stays one message. Note that reloading the automations or
+        restarting Home Assistant ends the waiting period early.
+      default:
+        hours: 1
+        minutes: 0
+        seconds: 0
+      selector:
+        duration: {}
+
+mode: single
+max_exceeded: silent
+
+variables:
+  sensor_entity: !input sensor
+  threshold: !input threshold
+  sensor_name: "{{ state_attr(sensor_entity, 'friendly_name') or sensor_entity }}"
+  value: "{{ states(sensor_entity) }}"
+  unit: "{{ state_attr(sensor_entity, 'unit_of_measurement') or '' }}"
+  station: "{{ state_attr(sensor_entity, 'location') or '' }}"
+  measured_at: "{{ state_attr(sensor_entity, 'measured_at') or 'unknown' }}"
+
+triggers:
+  - trigger: numeric_state
+    entity_id: !input sensor
+    above: !input threshold
+
+actions:
+  - alias: Notify
+    sequence: !input notification
+  - alias: Keep quiet for the cooldown period
+    delay: !input cooldown

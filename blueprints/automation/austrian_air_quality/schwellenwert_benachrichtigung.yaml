@@ -1,0 +1,120 @@
+blueprint:
+  name: Luftqualität Österreich – Benachrichtigung bei Schwellenwert-Überschreitung
+  description: >-
+    Meldet, wenn ein Sensor der Integration Luftqualität Österreich über einen
+    Schwellenwert steigt.
+
+
+    **Der Schwellenwert ist bewusst nicht vorbelegt.** Die österreichischen
+    Grenzwerte, Informations- und Alarmschwellen stehen im IG-L und im
+    Ozongesetz, und jede einzelne bezieht sich auf einen bestimmten
+    Mittelungszeitraum – Einstundenmittel, Tagesmittel, Dreistundenmittel.
+    Dieser Blueprint kann nicht prüfen, ob der gewählte Sensor zum
+    Mittelungszeitraum des jeweiligen Werts passt. Sieh die Zahl im Gesetzestext
+    nach (RIS, https://www.ris.bka.gv.at) und wähle den Sensor mit dem
+    passenden Mittelungszeitraum; ein amtlich aussehender Schwellenwert auf dem
+    falschen Mittelwert ist schlechter als gar keine Warnung.
+
+
+    Zwei Eigenschaften der Sensoren gehören hier dazugesagt: Die einfachen
+    Schadstoffsensoren sind Halbstundenmittelwerte (HMW), der frischeste Wert
+    des Umweltbundesamts, und die Tagesmittel-Sensoren melden den
+    *abgeschlossenen Vortag*, nicht den laufenden Tag.
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  source_url: https://github.com/karlrt/ha-austrian-air-quality/blob/main/blueprints/automation/austrian_air_quality/schwellenwert_benachrichtigung.yaml
+  input:
+    sensor:
+      name: Sensor
+      description: >-
+        Der Messwert, der überwacht wird. Zur Auswahl stehen nur die
+        numerischen Sensoren dieser Integration; der Index-Sensor mit dem
+        Textzustand („Gut", „Annehmbar", …) ist nicht dabei, weil er sich nicht
+        mit einer Zahl vergleichen lässt. Für den Index selbst gibt es den
+        Sensor „Luftqualitätsindex Stufe" (1 bis 6).
+      selector:
+        entity:
+          filter:
+            - integration: austrian_air_quality
+              domain: sensor
+              device_class:
+                - pm10
+                - pm25
+                - nitrogen_dioxide
+                - nitrogen_monoxide
+                - ozone
+                - sulphur_dioxide
+                - carbon_monoxide
+                - aqi
+    threshold:
+      name: Schwellenwert
+      description: >-
+        Der Wert, über den der Sensor steigen muss, in der Einheit des Sensors:
+        µg/m³ bei allen Schadstoffen außer Kohlenmonoxid (mg/m³) und 1 bis 6
+        bei der Index-Stufe. Bewusst ohne Vorgabe – siehe Hinweis oben.
+      selector:
+        number:
+          min: 0
+          max: 2000
+          step: 0.1
+          mode: box
+    notification:
+      name: Benachrichtigung
+      description: >-
+        Was bei Überschreitung passieren soll. Die vorbelegte Aktion schreibt
+        eine dauerhafte Benachrichtigung in Home Assistant; ersetze sie durch
+        deinen eigenen Benachrichtigungsdienst, damit die Meldung aufs Handy
+        kommt.
+
+
+        In der Aktion stehen diese Variablen zur Verfügung: `sensor_entity`,
+        `sensor_name`, `value`, `unit`, `threshold`, `station` (Adresse der
+        Messstelle) und `measured_at` (Zeitpunkt der Messung).
+      default:
+        - action: notify.persistent_notification
+          data:
+            title: Schwellenwert der Luftqualität überschritten
+            message: >-
+              {{ sensor_name }}: {{ value }} {{ unit }} – über dem
+              Schwellenwert von {{ threshold }} {{ unit }}. Messung von
+              {{ measured_at }}.
+      selector:
+        action: {}
+    cooldown:
+      name: Mindestabstand zwischen zwei Meldungen
+      description: >-
+        Ein Wert, der um den Schwellenwert schwankt, überschreitet ihn immer
+        wieder. So lange nach einer Meldung werden weitere Überschreitungen
+        ignoriert, damit aus einer Überschreitung eine Meldung wird und keine
+        Meldungsflut. Zu bedenken: Ein Neuladen der Automationen oder ein
+        Neustart von Home Assistant beendet die Wartezeit vorzeitig.
+      default:
+        hours: 1
+        minutes: 0
+        seconds: 0
+      selector:
+        duration: {}
+
+mode: single
+max_exceeded: silent
+
+variables:
+  sensor_entity: !input sensor
+  threshold: !input threshold
+  sensor_name: "{{ state_attr(sensor_entity, 'friendly_name') or sensor_entity }}"
+  value: "{{ states(sensor_entity) }}"
+  unit: "{{ state_attr(sensor_entity, 'unit_of_measurement') or '' }}"
+  station: "{{ state_attr(sensor_entity, 'location') or '' }}"
+  measured_at: "{{ state_attr(sensor_entity, 'measured_at') or 'unbekannt' }}"
+
+triggers:
+  - trigger: numeric_state
+    entity_id: !input sensor
+    above: !input threshold
+
+actions:
+  - alias: Melden
+    sequence: !input notification
+  - alias: Für die Dauer des Mindestabstands still bleiben
+    delay: !input cooldown

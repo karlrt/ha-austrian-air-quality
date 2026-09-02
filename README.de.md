@@ -164,6 +164,39 @@ und Bedingungen der Home-Assistant-Building-Block-Integration
 ohne Hilfsentities. Schwellenwerte sind Geschmackssache und hängen vom Anlass ab, deshalb
 bringt diese Integration bewusst keine eigenen mit.
 
+### Blueprint: Benachrichtigung bei Schwellenwert-Überschreitung
+
+Für den häufigsten Fall – *sag mir Bescheid, wenn ein Wert über X steigt* – liegt eine
+fertige Automatisierung im Repository. Ein Klick importiert sie in die eigene Installation:
+
+[![Diese Home-Assistant-Instanz öffnen und den Blueprint-Import-Dialog anzeigen.][my-blueprint-badge]][my-blueprint]
+
+| Eingabe | Wofür sie da ist |
+|---|---|
+| **Sensor** | Der überwachte Messwert. Zur Auswahl stehen nur die numerischen Sensoren dieser Integration; für den Index selbst ist es *Luftqualitätsindex Stufe* (1 bis 6). |
+| **Schwellenwert** | Der Wert, über den der Sensor steigen muss, in der Einheit des Sensors. Bewusst nicht vorbelegt – siehe unten. |
+| **Benachrichtigung** | Was bei einer Überschreitung passiert. Vorbelegt mit einer dauerhaften Benachrichtigung; ersetzbar durch den eigenen Benachrichtigungsdienst. Darin stehen die Variablen `sensor_name`, `value`, `unit`, `threshold`, `station` und `measured_at` zur Verfügung. |
+| **Mindestabstand zwischen zwei Meldungen** | Voreingestellt eine Stunde. Ein Wert, der um den Schwellenwert schwankt, überschreitet ihn immer wieder; in dieser Zeit werden weitere Überschreitungen ignoriert, damit aus einer Überschreitung eine Meldung wird. |
+
+> **Es ist kein Schwellenwert vorbelegt, und das mit Absicht.** Die österreichischen
+> Grenzwerte, Informations- und Alarmschwellen stehen im IG-L und im Ozongesetz, und jede
+> einzelne bezieht sich auf einen bestimmten Mittelungszeitraum. Der Blueprint kann nicht
+> prüfen, ob der gewählte Sensor zum Mittelungszeitraum des jeweiligen Werts passt, und ein
+> amtlich aussehender Schwellenwert auf dem falschen Mittelwert ist schlechter als gar keine
+> Warnung. Die Zahl im Gesetzestext nachsehen ([RIS](https://www.ris.bka.gv.at)) und den
+> Sensor mit dem passenden Mittelungszeitraum wählen.
+
+Die Wartezeit ist eine Verzögerung am Ende der Automatisierung, die im Modus `single`
+läuft: Während sie wartet, treffen weitere Überschreitungen auf einen laufenden Durchgang
+und werden still verworfen. Ein Neuladen der Automationen oder ein Neustart von Home
+Assistant beendet diese Wartezeit vorzeitig.
+
+Die Datei ist `blueprints/automation/austrian_air_quality/schwellenwert_benachrichtigung.yaml`;
+[eine englische Fassung](blueprints/automation/austrian_air_quality/threshold_notification.yaml)
+derselben Automatisierung liegt daneben.
+
+### Von Hand geschrieben
+
 Ozon-Informationsschwelle, 180 µg/m³:
 
 ```yaml
@@ -375,6 +408,70 @@ entities:
 Alle Sensoren einer Station tragen dieselben Koordinaten – für die Karte genügt daher
 ein Sensor pro Station, sonst liegen mehrere Marker exakt übereinander.
 
+## Dashboard
+
+Eine fertige Ansicht mit den aktuellen Messwerten, der Station auf der Karte und den
+letzten 24 Stunden. Unter *Dashboard bearbeiten → ⋮ → Raw-Konfigurationseditor* den Block
+unter `views:` einfügen und die Entity-IDs durch die eigenen ersetzen:
+
+```yaml
+- title: Luftqualität
+  path: luftqualitaet
+  icon: mdi:air-filter
+  type: sections
+  max_columns: 2
+  sections:
+    - type: grid
+      cards:
+        - type: heading
+          heading: Graz Don Bosco
+        - type: entities
+          title: Aktuelle Messwerte
+          state_color: true
+          entities:
+            - entity: sensor.graz_don_bosco_luftqualitatsindex
+            - entity: sensor.graz_don_bosco_feinstaub_pm10
+            - entity: sensor.graz_don_bosco_feinstaub_pm2_5
+            - entity: sensor.graz_don_bosco_stickstoffdioxid
+            - entity: sensor.graz_don_bosco_ozon
+            - type: attribute
+              entity: sensor.graz_don_bosco_feinstaub_pm10
+              attribute: measured_at
+              name: Messung von
+    - type: grid
+      cards:
+        - type: heading
+          heading: Messstelle
+        - type: map
+          entities:
+            - sensor.graz_don_bosco_koordinaten
+          theme_mode: auto
+          auto_fit: true
+    - type: grid
+      cards:
+        - type: heading
+          heading: Letzte 24 Stunden
+        - type: history-graph
+          hours_to_show: 24
+          entities:
+            - entity: sensor.graz_don_bosco_feinstaub_pm10
+            - entity: sensor.graz_don_bosco_stickstoffdioxid
+            - entity: sensor.graz_don_bosco_ozon
+```
+
+Zu den drei Karten:
+
+- **Aktuelle Messwerte** – die Halbstundenmittelwerte, als letzte Zeile das Attribut
+  `measured_at`: Es sagt, wie alt die Zahlen auf der Karte sind. Die Tagesmittel-Sensoren
+  passen ebenfalls hierher, solange klar bleibt, dass sie den [Vortag](#messgrößen) melden.
+- **Messstelle** – die Karte braucht genau eine Entität pro Station, sonst liegen mehrere
+  Marker übereinander; siehe [Station auf der Karte](#station-auf-der-karte).
+- **Letzte 24 Stunden** – der Verlauf zeigt nur, was der Recorder aufgehoben hat. Direkt
+  nach dem Einrichten ist die Karte leer und füllt sich im Lauf des Tages.
+
+Es gibt nur die Entitäten, die in der Auswahl aktiviert wurden; die übrigen Zeilen
+entweder löschen oder die Entitäten unter *Konfigurieren* nachziehen.
+
 ## Entwicklung
 
 - Domain: `austrian_air_quality` (unveränderlich nach dem ersten Release)
@@ -391,6 +488,11 @@ Die Unit-Tests laufen deshalb mit einem nackten Python ohne Zusatzpakete:
 python -m unittest discover -s tests -v
 ```
 
+Die zwei Dateien unter `blueprints/automation/austrian_air_quality/` sind dieselbe
+Automatisierung in zwei Sprachen; unterscheiden dürfen sich nur die Beschriftungen.
+`tests/test_blueprints.py` vergleicht sie und schlägt fehl, wenn sie auseinanderlaufen –
+es ist der einzige Test, der PyYAML braucht, und überspringt sich ohne das Paket selbst.
+
 Siehe `custom_components/austrian_air_quality/` für den Quellcode.
 
 ## Lizenz
@@ -401,3 +503,5 @@ Apache-2.0 – siehe [LICENSE](LICENSE).
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
 [my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=karlrt&repository=ha-austrian-air-quality&category=integration
 [my-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
+[my-blueprint]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fkarlrt%2Fha-austrian-air-quality%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Faustrian_air_quality%2Fschwellenwert_benachrichtigung.yaml
+[my-blueprint-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
