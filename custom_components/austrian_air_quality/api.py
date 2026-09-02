@@ -44,12 +44,25 @@ REQUEST_DELAY = 0.3
 
 EARTH_RADIUS_KM = 6371.0
 
+# The interface currently answers in English. The German abbreviations that
+# differ from it are accepted as well, so a locale switch at the source would
+# not silently drop the timestamp. "Jän" is the Austrian form of January.
 _MONTHS = {
     m: i + 1
     for i, m in enumerate(
         "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
     )
 }
+_MONTHS.update({"Jän": 1, "Mär": 3, "Mai": 5, "Okt": 10, "Dez": 12})
+
+# The source documents its times as CET, all year round. Without an offset in
+# the timestamp that is the assumption to make; reading such a value as UTC
+# would shift every timestamp by an hour without anything looking wrong.
+CET = timezone(timedelta(hours=1))
+
+# The missing offset would be a change at the source, not a per-value quirk, so
+# it is worth a warning - but only the first one.
+_missing_offset_warned = False
 
 _TIME_RE = re.compile(
     r"^(\d{1,2})\s+(\w{3})\s+(\d{4})\s+"
@@ -70,13 +83,17 @@ class AustrianAirQualityAuthError(AustrianAirQualityApiError):
 
 
 def parse_measurement_time(raw: str | None) -> datetime | None:
-    """Robustly parse the interface timestamp in a locale-independent manner.
+    """Robustly parse the interface timestamp, without relying on the locale.
 
-    Example value: "28 Aug 2026 13:30:00 GMT+0100".
+    Example value: "28 Aug 2026 13:30:00 GMT+0100". English and German month
+    abbreviations are both understood; anything else yields None.
 
     Warning: The source provides times in CET according to country documentation,
-    also during daylight saving time. The offset is used as provided.
+    also during daylight saving time. The offset is used as provided, and CET is
+    assumed where the timestamp carries none.
     """
+    global _missing_offset_warned
+
     if not raw:
         return None
     match = _TIME_RE.match(raw.strip())
@@ -85,13 +102,22 @@ def parse_measurement_time(raw: str | None) -> datetime | None:
         return None
     day, month, year, hour, minute, second, offset = match.groups()
     if month not in _MONTHS:
+        _LOGGER.debug("Unknown month abbreviation: %s", raw)
         return None
-    tzinfo = timezone.utc
     if offset:
         sign = 1 if offset[0] == "+" else -1
         tzinfo = timezone(
             sign * timedelta(hours=int(offset[1:3]), minutes=int(offset[3:5]))
         )
+    else:
+        tzinfo = CET
+        if not _missing_offset_warned:
+            _missing_offset_warned = True
+            _LOGGER.warning(
+                "Timestamp %s carries no time zone offset; reading it as CET "
+                "(UTC+1), the convention documented for this source",
+                raw,
+            )
     try:
         return datetime(
             int(year),
