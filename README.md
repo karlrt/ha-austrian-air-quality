@@ -475,6 +475,10 @@ Assistant, so its unit tests run against a bare Python interpreter with no extra
 python -m unittest discover -s tests -v
 ```
 
+`tests/test_api.py` covers the timestamp and value parsing of the map interface client.
+`api.py` does import `aiohttp`; where that package is missing, the test file stands in for
+it, so this suite too needs nothing but the interpreter.
+
 The two files under `blueprints/automation/austrian_air_quality/` are the same automation
 in two languages; only the labels may differ. `tests/test_blueprints.py` compares them and
 fails when they drift apart – it is the one test that needs PyYAML and skips itself on an

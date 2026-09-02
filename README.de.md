@@ -488,6 +488,10 @@ Die Unit-Tests laufen deshalb mit einem nackten Python ohne Zusatzpakete:
 python -m unittest discover -s tests -v
 ```
 
+`tests/test_api.py` deckt das Parsen von Zeitstempeln und Messwerten im Client der
+Kartenschnittstelle ab. `api.py` importiert `aiohttp`; fehlt das Paket, springt die
+Testdatei dafür ein – auch diese Tests brauchen also nur den Interpreter.
+
 Die zwei Dateien unter `blueprints/automation/austrian_air_quality/` sind dieselbe
 Automatisierung in zwei Sprachen; unterscheiden dürfen sich nur die Beschriftungen.
 `tests/test_blueprints.py` vergleicht sie und schlägt fehl, wenn sie auseinanderlaufen –
