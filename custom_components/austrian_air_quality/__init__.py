@@ -30,12 +30,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfig
         entry.data.get(CONF_LONGITUDE),
     )
     station = _pop_prefetched(hass, entry.data[CONF_STATION_ID])
+    fetched = station is not None
     if station is not None:
         # The config flow just fetched this, so the entry can be set up right
         # away rather than making the user wait through a second round.
         coordinator.async_set_updated_data(station)
-    else:
+    elif not entry.options:
+        # The migration below is the one thing that still has to know what the
+        # station reports, so this setup waits for a fetch. It happens once per
+        # entry, on the first start after the selection was introduced, and
+        # never again.
         await coordinator.async_config_entry_first_refresh()
+        fetched = True
 
     if not entry.options:
         # An entry from before the selection existed. It starts from what it
@@ -52,6 +58,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfig
         )
 
     entry.runtime_data = coordinator
+    if not fetched:
+        # Nothing here waits for measurements any more: which entities exist
+        # comes from the selection alone. A full station takes half a minute of
+        # serial requests, and every entry used to spend that inside setup, so
+        # Home Assistant reported "waiting for integrations" for as long as all
+        # of them together took. The fetch now runs alongside the rest of the
+        # start; the sensors are unavailable until it lands, which is what they
+        # are for. Failures are logged and retried on the next cycle rather than
+        # holding the entry back.
+        entry.async_create_background_task(
+            hass,
+            coordinator.async_refresh(),
+            f"{DOMAIN}_first_refresh_{entry.entry_id}",
+        )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

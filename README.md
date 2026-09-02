@@ -300,6 +300,18 @@ sits in a single form. The entry is reloaded automatically afterwards.
 **What the selection costs.** Every ticked measurement is one request per update cycle, so
 every 30 minutes. The full set is 14 requests per station; a selection of two values is two.
 
+**When it fetches.** The source publishes on a fixed half-hourly grid, and every entry fetches
+once per published value, at a fixed position inside the half-hourly window. That position is
+derived from the entry id: it stays the same across restarts, and differs between the stations
+of one installation and between installations. So the fetches do not slowly drift past the
+grid (skipping the occasional half-hourly value on the way), and the installations do not all
+arrive on the same second.
+
+**The start does not wait for measurements.** Which entities exist comes from the selection, so
+the first fetch runs in the background alongside the rest of the start. Until it lands the
+sensors are *unavailable* – before this, every entry held up the Home Assistant start for the
+length of a full fetch, around half a minute per station.
+
 **Unticked entities are not deleted.** They are simply no longer created and show up in Home
 Assistant as *unavailable*. The registry entry and the long-term statistics stay, and ticking
 them again brings them back with the same entity ID and their history. Getting rid of them
