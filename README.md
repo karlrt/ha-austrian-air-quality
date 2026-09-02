@@ -330,15 +330,21 @@ The user interface is available in English and German.
 
 ### Choosing what to track
 
-The detail view is followed by the measurement selection. What is offered is always the full
-catalogue – seven pollutants times two averaging periods – with whatever the station is
-reporting at that moment ticked. The difference matters: a pollutant the station happens to
-be skipping while the entry is being created can be ticked all the same, and starts
-delivering as soon as it is back.
+The detail view is followed by the selection. It asks first for the one thing nearly everyone
+wants to answer: **which pollutants** should become sensors. What is offered are the seven
+current values – the half-hourly means – with whatever the station is reporting at that
+moment ticked. The difference matters: a pollutant the station happens to be skipping while
+the entry is being created can be ticked all the same, and starts delivering as soon as it is
+back.
 
-The switch *Choose the other entities as well* opens a second step with the EAQI sub-indices,
-the station index and the coordinates entity. Left unticked, they are created to match the
-measurement selection.
+The **station air quality index** sits on the same page. It can always be ticked, but is
+preselected only where it can reach a level at all under the EEA rules, see [Station index](#the-station-index-and-its-two-coverage-rules).
+
+The switch *Choose further entities* opens a second step after submitting, holding the daily
+means, the EAQI sub-index of each pollutant and the coordinates entity. **Left unticked, none
+of them are created.** A setup that skips that step therefore ends up with the ticked current
+values and, where chosen, the two station index entities. Everything else can be added at any
+time under *Configure*.
 
 Everything can be changed afterwards through *Configure* on the entry, where the full extent
 sits in a single form. The entry is reloaded automatically afterwards.
@@ -381,7 +387,8 @@ lost, and a sensor that went missing through such a gap comes back.
 ## Station on a map
 
 Each station also gets a **Coordinates** diagnostic entity – when it is enabled in the
-selection – whose state shows the position as `47.06695, 15.44226`. It appears on the device page under *Diagnostic* and is the entity to
+selection; during setup it sits behind *Choose further entities* and is **off by default**
+there – whose state shows the position as `47.06695, 15.44226`. It appears on the device page under *Diagnostic* and is the entity to
 put on a map card, since there is exactly one per station.
 
 Every sensor – the coordinates entity included – exposes the station metadata as state
@@ -466,7 +473,9 @@ Notes on the three cards:
   last row: it says how old the figures on the card are. The daily mean sensors fit here
   too, as long as it stays clear that they report [yesterday](#measurements).
 - **Station** – the map needs exactly one entity per station, otherwise several markers end
-  up on the same spot; see [Station on a map](#station-on-a-map).
+  up on the same spot; see [Station on a map](#station-on-a-map). The coordinates entity is
+  off by default during setup – without it this card stays empty. It can be added under
+  *Configure*.
 - **Last 24 hours** – the history graph only shows what the recorder has kept. Right after
   setting the integration up the graph is empty and fills over the following day.
 

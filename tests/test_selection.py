@@ -223,16 +223,129 @@ class TestDefaults(unittest.TestCase):
         defaults = selection.default_options()
         self.assertEqual(defaults[const.OPT_MEASUREMENTS], [])
 
-    def test_both_averaging_periods_for_a_reported_pollutant(self) -> None:
-        defaults = selection.default_for_pollutants(["o3"])
-        self.assertEqual(defaults[const.OPT_MEASUREMENTS], ["o3", "o3_daily"])
-
     def test_defaults_round_trip_through_the_readers(self) -> None:
         defaults = selection.default_options(reported=["pm25", "pm25_daily", "co"])
         self.assertEqual(
             selection.wanted_measurements(defaults), ("pm25", "pm25_daily", "co")
         )
         self.assertEqual(selection.wanted_indexes(defaults), ("pm25_index",))
+
+
+class TestCatalogueHalves(unittest.TestCase):
+    """The setup asks for the two averaging periods on separate steps.
+
+    The split lives in the forms only. Whatever it does to the presentation,
+    the two halves have to add back up to the catalogue the stored selection is
+    read against, or a key becomes unreachable in the setup.
+    """
+
+    def test_the_halves_add_up_to_the_catalogue(self) -> None:
+        self.assertEqual(
+            set(selection.CURRENT_KEYS) | set(selection.DAILY_KEYS),
+            set(const.MEASUREMENT_KEYS),
+        )
+        self.assertEqual(
+            len(selection.CURRENT_KEYS) + len(selection.DAILY_KEYS),
+            len(const.MEASUREMENT_KEYS),
+        )
+
+    def test_no_key_is_in_both_halves(self) -> None:
+        self.assertEqual(
+            set(selection.CURRENT_KEYS) & set(selection.DAILY_KEYS), set()
+        )
+
+    def test_each_half_keeps_the_catalogue_order(self) -> None:
+        for half in (selection.CURRENT_KEYS, selection.DAILY_KEYS):
+            with self.subTest(half=half[:1]):
+                self.assertEqual(
+                    half,
+                    tuple(key for key in const.MEASUREMENT_KEYS if key in set(half)),
+                )
+
+    def test_the_current_half_is_the_bare_pollutant_keys(self) -> None:
+        self.assertEqual(selection.CURRENT_KEYS, const.POLLUTANTS)
+
+
+class TestDailyCounterparts(unittest.TestCase):
+    """What the second step starts from."""
+
+    def test_a_chosen_pollutant_brings_its_daily_mean(self) -> None:
+        self.assertEqual(
+            selection.daily_counterparts(["o3", "no2"]), ("no2_daily", "o3_daily")
+        )
+
+    def test_the_catalogue_decides_the_order(self) -> None:
+        self.assertEqual(
+            selection.daily_counterparts(["co", "pm10"]), ("pm10_daily", "co_daily")
+        )
+
+    def test_nothing_chosen_brings_nothing(self) -> None:
+        self.assertEqual(selection.daily_counterparts([]), ())
+
+    def test_unknown_keys_are_ignored(self) -> None:
+        self.assertEqual(selection.daily_counterparts(["radon", "o3"]), ("o3_daily",))
+
+
+class TestStationIndexDefault(unittest.TestCase):
+    """The coverage rule, read off the pollutants instead of the sub-indices.
+
+    The setup no longer preselects sub-indices, so deriving the rule from them
+    would answer "no" at every station.
+    """
+
+    def test_a_station_with_the_standard_coverage(self) -> None:
+        self.assertTrue(selection.station_index_default(["no2", "o3", "pm10"]))
+
+    def test_a_station_without_ozone_falls_back_to_the_traffic_rule(self) -> None:
+        self.assertTrue(selection.station_index_default(["no2", "pm25", "co"]))
+
+    def test_ozone_alone_reaches_no_level(self) -> None:
+        self.assertFalse(selection.station_index_default(["o3"]))
+
+    def test_particulate_matter_alone_is_not_enough(self) -> None:
+        self.assertFalse(selection.station_index_default(["pm10", "pm25"]))
+
+    def test_a_station_reporting_nothing_reaches_no_level(self) -> None:
+        self.assertFalse(selection.station_index_default([]))
+
+
+class TestConfirmDefaults(unittest.TestCase):
+    """The lean selection the first step of the setup starts from."""
+
+    def test_only_the_freshest_values_are_preselected(self) -> None:
+        defaults = selection.default_for_confirm(["pm10", "no2"])
+        self.assertEqual(defaults[const.OPT_MEASUREMENTS], ["pm10", "no2"])
+
+    def test_no_daily_mean_sneaks_in(self) -> None:
+        defaults = selection.default_for_confirm(const.POLLUTANTS)
+        self.assertEqual(
+            [
+                key
+                for key in defaults[const.OPT_MEASUREMENTS]
+                if key in set(selection.DAILY_KEYS)
+            ],
+            [],
+        )
+
+    def test_sub_indices_and_coordinates_stay_out(self) -> None:
+        defaults = selection.default_for_confirm(["no2", "o3", "pm10"])
+        self.assertEqual(defaults[const.OPT_INDEXES], [])
+        self.assertFalse(defaults[const.OPT_LOCATION])
+
+    def test_the_station_index_follows_the_coverage_rule(self) -> None:
+        self.assertTrue(
+            selection.default_for_confirm(["no2", "pm10"])[const.OPT_STATION_INDEX]
+        )
+        self.assertFalse(
+            selection.default_for_confirm(["o3"])[const.OPT_STATION_INDEX]
+        )
+
+    def test_it_round_trips_through_the_readers(self) -> None:
+        defaults = selection.default_for_confirm(["no2", "pm10"])
+        self.assertEqual(selection.wanted_measurements(defaults), ("pm10", "no2"))
+        self.assertEqual(selection.wanted_indexes(defaults), ())
+        self.assertTrue(selection.wants_station_index(defaults))
+        self.assertFalse(selection.wants_location(defaults))
 
 
 class TestSelectorLabels(unittest.TestCase):
@@ -262,6 +375,22 @@ class TestSelectorLabels(unittest.TestCase):
                     set(selectors["indexes"]["options"]),
                     set(selection.INDEX_KEYS),
                 )
+
+    # The fields each setup step asks for. A field without a label is not an
+    # error either - Home Assistant just prints the raw key, which is how
+    # "advanced" once ended up on screen under that name.
+    STEP_FIELDS = {
+        "confirm": {"measurements", "station_index", "advanced"},
+        "extras": {"daily_means", "indexes", "location_entity"},
+    }
+
+    def test_every_form_field_has_a_label(self) -> None:
+        for path in self.FILES:
+            translations = json.loads(path.read_text(encoding="utf-8"))
+            steps = translations["config"]["step"]
+            for step, fields in self.STEP_FIELDS.items():
+                with self.subTest(file=path.name, step=step):
+                    self.assertEqual(set(steps[step]["data"]), fields)
 
 
 if __name__ == "__main__":

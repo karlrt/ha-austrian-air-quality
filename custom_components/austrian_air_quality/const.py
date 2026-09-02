@@ -150,9 +150,14 @@ OPT_INDEXES: Final = "indexes"
 OPT_STATION_INDEX: Final = "station_index"
 OPT_LOCATION: Final = "location_entity"
 
-# Config flow only, never stored: whether the second step with the index and
-# diagnostic entities follows the measurement selection.
+# Config flow only, never stored: whether the second step with the daily means,
+# the sub-indices and the coordinates entity follows the measurement selection.
 CONF_ADVANCED: Final = "advanced"
+
+# Config flow only, never stored: the daily means are asked for on that second
+# step and are merged into OPT_MEASUREMENTS before the entry is created, so the
+# stored selection keeps the shape every other module reads.
+CONF_DAILY: Final = "daily_means"
 
 
 # Short chemical labels for the config flow. Deliberately language neutral so

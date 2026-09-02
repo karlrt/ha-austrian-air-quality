@@ -341,15 +341,22 @@ Die Benutzeroberfläche gibt es auf Deutsch und Englisch.
 
 ### Auswahl der Entitäten
 
-Nach der Detailansicht folgt die Auswahl der Messwerte. Angeboten wird immer der vollständige
-Katalog – sieben Schadstoffe mal zwei Mittelwerttypen –, vorausgewählt ist, was die Station
-gerade meldet. Der Unterschied ist wichtig: Ein Schadstoff, den die Station im Moment des
+Nach der Detailansicht folgt die Auswahl. Sie fragt zuerst nur das, was fast jeder
+beantworten will: **welche Schadstoffe** als Sensoren entstehen sollen. Angeboten werden die
+sieben Aktualwerte – die Halbstundenmittelwerte –, vorausgewählt ist, was die Station gerade
+meldet. Der Unterschied ist wichtig: Ein Schadstoff, den die Station im Moment des
 Einrichtens gerade aussetzt, lässt sich trotzdem anhaken und liefert Werte, sobald er wieder
 da ist.
 
-Der Schalter *Die übrigen Entitäten mit auswählen* öffnet einen zweiten Schritt mit den
-EAQI-Teilindizes, dem Stationsindex und der Koordinaten-Entität. Ohne Haken werden sie
-passend zur Messwertauswahl angelegt.
+Auf derselben Seite steht der **Luftqualitätsindex der Station**. Er ist immer anwählbar,
+vorausgewählt aber nur dort, wo er nach den EEA-Regeln überhaupt eine Stufe erreichen kann,
+siehe [Stationsindex](#der-stationsindex-und-seine-zwei-regeln).
+
+Der Schalter *Weitere Entitäten auswählen* öffnet nach dem Absenden einen zweiten Schritt mit
+den Tagesmitteln, den EAQI-Teilindizes je Schadstoff und der Koordinaten-Entität. **Ohne
+Haken entsteht nichts davon.** Eine Einrichtung ohne diesen Schritt legt also nur die
+angehakten Aktualwerte und – wenn gewählt – die beiden Stationsindex-Entitäten an. Alles
+Weitere lässt sich jederzeit unter *Konfigurieren* nachholen.
 
 Nachträglich ändern lässt sich alles über *Konfigurieren* am Eintrag; dort steht der volle
 Umfang in einem Formular. Der Eintrag wird danach automatisch neu geladen.
@@ -395,7 +402,8 @@ verloren, und ein Sensor, der wegen einer solchen Messlücke fehlte, kommt zurü
 ## Station auf der Karte
 
 Jede Station bekommt zusätzlich eine Diagnose-Entität **Koordinaten** – sofern in der
-Auswahl aktiviert –, deren Zustand die Position als `47.06695, 15.44226` anzeigt. Sie steht auf der Geräteseite unter *Diagnose* und
+Auswahl aktiviert; beim Einrichten steckt sie hinter *Weitere Entitäten auswählen* und ist
+dort **standardmäßig aus** –, deren Zustand die Position als `47.06695, 15.44226` anzeigt. Sie steht auf der Geräteseite unter *Diagnose* und
 ist der passende Eintrag für eine Karten-Karte, weil es sie genau einmal pro Station gibt.
 
 Jeder Sensor – auch die Koordinaten-Entität – liefert die Stationsdaten als Attribute mit:
@@ -479,7 +487,9 @@ Zu den drei Karten:
   `measured_at`: Es sagt, wie alt die Zahlen auf der Karte sind. Die Tagesmittel-Sensoren
   passen ebenfalls hierher, solange klar bleibt, dass sie den [Vortag](#messgrößen) melden.
 - **Messstelle** – die Karte braucht genau eine Entität pro Station, sonst liegen mehrere
-  Marker übereinander; siehe [Station auf der Karte](#station-auf-der-karte).
+  Marker übereinander; siehe [Station auf der Karte](#station-auf-der-karte). Die
+  Koordinaten-Entität ist beim Einrichten standardmäßig aus – ohne sie bleibt diese Karte
+  leer. Nachziehen lässt sie sich unter *Konfigurieren*.
 - **Letzte 24 Stunden** – der Verlauf zeigt nur, was der Recorder aufgehoben hat. Direkt
   nach dem Einrichten ist die Karte leer und füllt sich im Lauf des Tages.
 
