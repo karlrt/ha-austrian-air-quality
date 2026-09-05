@@ -4,31 +4,43 @@ from __future__ import annotations
 
 from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, instance_id
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
-from . import selection
+from . import schedule, selection
 from .api import AustrianAirQualityApi, AustrianAirQualityStation
-from .const import CONF_STATION_ID, DATA_PREFETCHED, DOMAIN, PREFETCH_MAX_AGE
-from .coordinator import AustrianAirQualityConfigEntry, AustrianAirQualityCoordinator
+from .const import (
+    CONF_STATION_ID,
+    DATA_HUB,
+    DATA_PREFETCHED,
+    DOMAIN,
+    PREFETCH_MAX_AGE,
+)
+from .coordinator import (
+    POLL_PERIOD,
+    AustrianAirQualityConfigEntry,
+    AustrianAirQualityCoordinator,
+    AustrianAirQualityHub,
+)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> bool:
     """Set up a configuration entry."""
-    session = async_get_clientsession(hass)
-    api = AustrianAirQualityApi(session)
+    hub = await _async_hub(hass)
 
     coordinator = AustrianAirQualityCoordinator(
         hass,
         entry,
-        api,
+        hub,
         entry.data[CONF_STATION_ID],
         entry.data.get(CONF_LATITUDE),
         entry.data.get(CONF_LONGITUDE),
     )
+    hub.async_add(coordinator)
+    entry.async_on_unload(lambda: _remove_from_hub(hass, hub, coordinator))
     station = _pop_prefetched(hass, entry.data[CONF_STATION_ID])
     fetched = station is not None
     if station is not None:
@@ -81,6 +93,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: AustrianAirQualityConfig
 async def async_unload_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> bool:
     """Unload a configuration entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def _async_hub(hass: HomeAssistant) -> AustrianAirQualityHub:
+    """The shared fetch cycle of this installation, created on first use.
+
+    The phase comes from the installation id rather than from an entry id: with
+    the fetches bundled there is only one cycle left to place, and it has to
+    keep its position on the grid no matter which entry happens to set it up or
+    which one is removed. Two installations still arrive at different seconds,
+    which is the point of the phase (see :mod:`schedule`).
+    """
+    data = hass.data.setdefault(DOMAIN, {})
+    hub = data.get(DATA_HUB)
+    if hub is None:
+        hub = AustrianAirQualityHub(
+            hass,
+            AustrianAirQualityApi(async_get_clientsession(hass)),
+            schedule.poll_phase(await instance_id.async_get(hass), POLL_PERIOD),
+        )
+        data[DATA_HUB] = hub
+    return hub
+
+
+def _remove_from_hub(
+    hass: HomeAssistant,
+    hub: AustrianAirQualityHub,
+    coordinator: AustrianAirQualityCoordinator,
+) -> None:
+    """Take an unloaded entry out of the shared cycle.
+
+    The hub goes with the last entry, timer and all, so an installation that
+    has removed its last station stops fetching instead of keeping a cycle
+    alive for nobody.
+    """
+    if hub.async_remove(coordinator):
+        hass.data.get(DOMAIN, {}).pop(DATA_HUB, None)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: AustrianAirQualityConfigEntry) -> None:

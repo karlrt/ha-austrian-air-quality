@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from math import asin, cos, radians, sin, sqrt
@@ -358,15 +358,35 @@ class AustrianAirQualityApi:
 
         stations = await self._async_collect(
             bbox,
-            station_id=station_id,
+            station_ids=(station_id,),
             queries=ALL_QUERIES if queries is None else queries,
         )
         return stations.get(station_id)
 
+    async def async_fetch_group(
+        self,
+        bbox: tuple[float, float, float, float],
+        station_ids: Collection[str],
+        queries: Sequence[tuple[str, str]],
+    ) -> dict[str, AustrianAirQualityStation]:
+        """Fetch several stations that share one bounding box.
+
+        The interface is queried by rectangle, not by station, so the answer for
+        one station already contains every other station inside the same
+        rectangle. Asking once for all of them therefore costs exactly what
+        asking for a single one costs, and the number of requests per cycle
+        stops following the number of stations.
+
+        Returns only the requested stations, keyed by id. A station the source
+        does not report at the moment is simply absent, exactly as a single
+        fetch would return ``None`` for it.
+        """
+        return await self._async_collect(bbox, station_ids=station_ids, queries=queries)
+
     async def _async_collect(
         self,
         bbox: tuple[float, float, float, float],
-        station_id: str | None = None,
+        station_ids: Collection[str] | None = None,
         queries: Sequence[tuple[str, str]] = ALL_QUERIES,
     ) -> dict[str, AustrianAirQualityStation]:
         """Query a plan for a bounding box and group the results by station.
@@ -396,7 +416,7 @@ class AustrianAirQualityApi:
                 continue
 
             for measurement in measurements.values():
-                if station_id is not None and measurement.station_id != station_id:
+                if station_ids is not None and measurement.station_id not in station_ids:
                     continue
                 station = stations.get(measurement.station_id)
                 if station is None:

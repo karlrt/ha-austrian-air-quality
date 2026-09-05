@@ -1,4 +1,4 @@
-"""When to fetch a station, so the fetches stay on the publication grid.
+"""When to fetch, so the fetches stay on the publication grid.
 
 The source publishes half-hourly means on a fixed grid, and a station is worth
 fetching once per published value. Counting the update interval from the end of
@@ -9,10 +9,10 @@ boundary, one published value is never fetched at all, and the long-term
 statistics carry a hole where it should have been.
 
 Anchoring every fetch to the clock instead removes the drift without fetching
-any more often. Each entry keeps a fixed position inside the window, its phase,
-so the fetches of one installation stay apart from each other and from those of
-every other installation: an undocumented public endpoint does not need every
-installation in the country arriving on the same second.
+any more often. The installation keeps a fixed position inside the window, its
+phase, so its cycle stays off the second every other installation arrives on:
+an undocumented public endpoint does not need every installation in the country
+turning up at once.
 
 Like :mod:`eaqi` and :mod:`selection` this module has no Home Assistant imports
 and can be exercised on its own.
@@ -23,16 +23,21 @@ from __future__ import annotations
 import hashlib
 
 
-def poll_phase(entry_id: str, period: int) -> int:
-    """Where inside the window this entry fetches, in seconds after its start.
+def poll_phase(identifier: str, period: int) -> int:
+    """Where inside the window this installation fetches, in seconds after its start.
 
-    Derived from the config entry id, so it is the same after every restart and
-    different for every entry - between the stations of one installation, and
-    between installations, because the id is generated per entry. A phase
-    derived from the station id would instead put every installation watching
-    the same station on the same second.
+    ``identifier`` is the installation id. It is stable across restarts and
+    different for every installation, so the fetches of one installation stay
+    off the second every other installation arrives on. A phase derived from
+    the station id would instead put every installation watching the same
+    station on the same second.
+
+    Since the fetches are bundled there is one cycle per installation left to
+    place, not one per entry: an entry id would tie the position of that cycle
+    to whichever entry happened to create it and move it as soon as that entry
+    was removed.
     """
-    digest = hashlib.sha256(entry_id.encode("utf-8")).digest()
+    digest = hashlib.sha256(identifier.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") % period
 
 

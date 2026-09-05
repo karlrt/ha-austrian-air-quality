@@ -20,9 +20,17 @@ Die Daten stammen aus der JSON-Schnittstelle der öffentlichen Luftgütekarte au
 `luft.umweltbundesamt.at`. Diese Schnittstelle ist **nicht dokumentiert** und kann sich
 jederzeit ändern oder wegfallen – die Integration liest sie so, wie es die Kartenanwendung
 selbst tut. Gelesen werden zwei Mittelungszeiträume, der Halbstundenmittelwert (HMW) und der
-Tagesmittelwert (TMW), macht 14 Abfragen pro Station und Aktualisierung; jeder Schadstoff und
-Zeitraum wird einzeln und mit kurzer Pause dazwischen abgefragt, ein einzelner Fehlschlag legt
-die Station nicht lahm.
+Tagesmittelwert (TMW). Jeder Schadstoff und Zeitraum wird einzeln und mit kurzer Pause
+dazwischen abgefragt, ein einzelner Fehlschlag legt die Station nicht lahm.
+
+**Abgefragt wird nicht pro Station, sondern pro Rechteck.** Die Schnittstelle liefert zu einem
+geografischen Rechteck alle Stationen darin, deshalb holt die Integration alle eingerichteten
+Stationen in einem gemeinsamen Durchgang: höchstens 14 Abfragen pro Aktualisierung, egal ob
+eine Station eingerichtet ist oder zehn. Nur wer Stationen weit auseinander beobachtet –
+Bregenz und Wien – bekommt mehrere Rechtecke, damit die Antwort nicht jedes Mal das halbe Land
+enthält. Wie viele Abfragen es tatsächlich sind, entscheidet zusätzlich die
+[Auswahl der Entitäten](#auswahl-der-entitäten): abgefragt wird nur, was mindestens eine
+Station wirklich braucht.
 
 Die Koordinierungsstelle Umweltinformation des Umweltbundesamts hat auf Anfrage bestätigt
 (August 2026), dass dieser Endpunkt bei entsprechender Nennung der Datenquelle genutzt werden
@@ -381,16 +389,18 @@ Nachträglich ändern lässt sich alles über *Konfigurieren* am Eintrag; dort s
 Umfang in einem Formular. Der Eintrag wird danach automatisch neu geladen.
 
 **Was die Auswahl kostet.** Jeder angehakte Messwert ist eine Abfrage pro
-Aktualisierungszyklus, also alle 30 Minuten. Der Vollausbau sind 14 Abfragen pro Station,
-eine Auswahl aus zwei Werten sind zwei.
+Aktualisierungszyklus, also alle 30 Minuten – aber **einmal für die ganze Installation**, nicht
+je Station. Gezählt wird, was alle Stationen zusammen brauchen: Wählt eine Station den vollen
+Umfang, sind es 14 Abfragen, ganz gleich wie viele Stationen daneben noch eingerichtet sind.
+Gemessen an der Testinstanz mit fünf Stationen (vier in Graz, eine in St. Pölten): 28 Abfragen
+pro Zyklus – zwei Rechtecke à 14 – gegenüber 70 vor der Bündelung.
 
-**Wann abgefragt wird.** Die Quelle veröffentlicht auf einem festen Halbstundenraster, und
-jeder Eintrag fragt einmal pro veröffentlichtem Wert ab – an einer festen Position innerhalb
-des Halbstundenfensters. Die Position wird aus der ID des Eintrags abgeleitet: Sie bleibt über
-Neustarts hinweg gleich, unterscheidet sich aber zwischen den Stationen einer Installation und
-zwischen Installationen. Damit wandert der Abruf nicht langsam am Raster vorbei (und
-überspringt gelegentlich einen Halbstundenwert), und die Abfragen aller Installationen treffen
-nicht auf dieselbe Sekunde.
+**Wann abgefragt wird.** Die Quelle veröffentlicht auf einem festen Halbstundenraster, und die
+Installation fragt einmal pro veröffentlichtem Wert ab – an einer festen Position innerhalb des
+Halbstundenfensters. Die Position wird aus der ID der Installation abgeleitet: Sie bleibt über
+Neustarts hinweg gleich, unterscheidet sich aber zwischen Installationen. Damit wandert der
+Abruf nicht langsam am Raster vorbei (und überspringt gelegentlich einen Halbstundenwert), und
+die Abfragen aller Installationen treffen nicht auf dieselbe Sekunde.
 
 **Der Start wartet nicht auf Messwerte.** Der Entitätsbestand kommt aus der Auswahl, der erste
 Abruf läuft daher im Hintergrund neben dem restlichen Start. Bis er ankommt, stehen die

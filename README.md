@@ -19,10 +19,17 @@ updated every 30 minutes.
 Data comes from the JSON interface of the public air quality map at
 `luft.umweltbundesamt.at`. That interface is **undocumented** and can change or disappear
 without notice – the integration reads it the same way the map application does. Two
-averaging periods are read, the half-hourly mean (HMW) and the daily mean (TMW), which
-makes 14 requests per station and update; every pollutant and period is requested
-separately, with a short delay in between, and a single failing request does not take the
-whole station down.
+averaging periods are read, the half-hourly mean (HMW) and the daily mean (TMW). Every
+pollutant and period is requested separately, with a short delay in between, and a single
+failing request does not take the whole station down.
+
+**Requests go by rectangle, not by station.** The interface answers for a geographic
+rectangle with every station inside it, so the integration fetches all configured stations
+in one shared cycle: at most 14 requests per update, whether one station is set up or ten.
+Only stations far apart – Bregenz and Vienna – get a rectangle each, so that the answer
+does not carry half the country every time. How many requests it really is also depends on
+[what you chose to track](#choosing-what-to-track): only what at least one station actually
+needs is requested.
 
 The Umweltbundesamt's Coordination Office Environmental Information confirmed on request
 (August 2026) that this endpoint may be used with attribution of the data source, and
@@ -368,14 +375,18 @@ Everything can be changed afterwards through *Configure* on the entry, where the
 sits in a single form. The entry is reloaded automatically afterwards.
 
 **What the selection costs.** Every ticked measurement is one request per update cycle, so
-every 30 minutes. The full set is 14 requests per station; a selection of two values is two.
+every 30 minutes – but **once for the whole installation**, not per station. What counts is
+what all stations together need: if one station is set to the full extent, that is 14
+requests, however many other stations sit next to it. Measured on the test installation with
+five stations (four in Graz, one in St. Pölten): 28 requests per cycle – two rectangles of 14
+– against 70 before the bundling.
 
-**When it fetches.** The source publishes on a fixed half-hourly grid, and every entry fetches
-once per published value, at a fixed position inside the half-hourly window. That position is
-derived from the entry id: it stays the same across restarts, and differs between the stations
-of one installation and between installations. So the fetches do not slowly drift past the
-grid (skipping the occasional half-hourly value on the way), and the installations do not all
-arrive on the same second.
+**When it fetches.** The source publishes on a fixed half-hourly grid, and the installation
+fetches once per published value, at a fixed position inside the half-hourly window. That
+position is derived from the installation id: it stays the same across restarts and differs
+between installations. So the fetches do not slowly drift past the grid (skipping the
+occasional half-hourly value on the way), and the installations do not all arrive on the same
+second.
 
 **The start does not wait for measurements.** Which entities exist comes from the selection, so
 the first fetch runs in the background alongside the rest of the start. Until it lands the

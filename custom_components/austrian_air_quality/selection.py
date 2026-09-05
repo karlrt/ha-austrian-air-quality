@@ -133,7 +133,21 @@ def required_queries(options: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
         needed.update(
             (pollutant, MEANTYPE_CURRENT) for pollutant in eaqi.EAQI_POLLUTANTS
         )
-    return tuple(pair for pair in _MEASUREMENT_PARTS.values() if pair in needed)
+    return in_plan_order(needed)
+
+
+def in_plan_order(
+    pairs: Iterable[tuple[str, str]],
+) -> tuple[tuple[str, str], ...]:
+    """The given pairs as a query plan: deduplicated, in catalogue order.
+
+    What several entries need together is a union of their plans, and a union
+    of sets has no order of its own. Putting it back into catalogue order keeps
+    the requests of a cycle in the same sequence every time, which makes a log
+    of two cycles comparable line by line.
+    """
+    wanted = set(pairs)
+    return tuple(pair for pair in _MEASUREMENT_PARTS.values() if pair in wanted)
 
 
 def daily_counterparts(measurements: Iterable[str]) -> tuple[str, ...]:

@@ -48,6 +48,10 @@ DEFAULT_SCAN_INTERVAL: Final = timedelta(minutes=30)
 # the dialog closes right away instead of waiting out another full round.
 DATA_PREFETCHED: Final = "prefetched_stations"
 
+# The one fetch cycle all entries of this installation share, kept under this
+# key so the second station finds the cycle the first one set up.
+DATA_HUB: Final = "hub"
+
 # How long such a handoff stays usable. Long enough to cover a user who reads
 # the review screen for a while, short enough that the entry never starts up
 # on measurements that have since been superseded.
