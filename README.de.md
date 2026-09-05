@@ -151,6 +151,25 @@ Der Stationsindex und sein numerisches Gegenstück tragen:
 
 Die Teilindex-Sensoren tragen `averaging_basis` und `scheme`.
 
+### Icons nach Stufe
+
+Nicht nur die Index-Sensoren, auch die **Messwert-Sensoren der fünf Index-Schadstoffe**
+(PM2.5, PM10, O₃, NO₂, SO₂) wechseln ihr Icon mit der EAQI-Stufe ihres aktuellen Werts –
+von `mdi:gauge-empty` bei *Gut* bis `mdi:alert-octagon-outline` bei *Extrem schlecht*.
+Messwert und zugehöriger Teilindex zeigen damit dasselbe Symbol.
+
+Bewusst begrenzt:
+
+- Nur die **aktuellen Werte**, nicht die Tagesmittel: die EAQI-Bänder sind auf
+  Stundenmittelwerten definiert, ein Vortagswert gehört nicht auf diese Skala.
+- Nur die fünf Index-Schadstoffe. **CO und NO** behalten das Icon ihrer Device Class –
+  für sie gibt es im EAQI keine Bänder und damit keine belegbare Schwelle.
+- Ein **negativer** Messwert (Messrauschen nahe null) und ein ausgefallener Sensor fallen
+  ebenfalls auf das Icon der Device Class zurück, statt als *Gut* zu erscheinen.
+
+Ein eigenes Icon an einer einzelnen Entität sticht das immer aus (Entität → Einstellungen
+→ Symbol).
+
 > **Der Index ist kein Werkzeug zur Grenzwertprüfung.** Die EEA stellt ausdrücklich fest,
 > dass der Luftqualitätsindex kein Werkzeug zur Prüfung der Einhaltung von
 > Luftqualitätsgrenzwerten ist und dafür nicht verwendet werden darf. Für rechtsverbindliche

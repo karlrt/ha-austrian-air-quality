@@ -4,6 +4,56 @@
       "station_location": {
         "default": "mdi:map-marker"
       },
+      "pm25": {
+        "range": {
+          "0": "mdi:gauge-empty",
+          "6": "mdi:gauge-low",
+          "16": "mdi:gauge",
+          "51": "mdi:gauge-full",
+          "91": "mdi:alert-outline",
+          "141": "mdi:alert-octagon-outline"
+        }
+      },
+      "pm10": {
+        "range": {
+          "0": "mdi:gauge-empty",
+          "16": "mdi:gauge-low",
+          "46": "mdi:gauge",
+          "121": "mdi:gauge-full",
+          "196": "mdi:alert-outline",
+          "271": "mdi:alert-octagon-outline"
+        }
+      },
+      "o3": {
+        "range": {
+          "0": "mdi:gauge-empty",
+          "61": "mdi:gauge-low",
+          "101": "mdi:gauge",
+          "121": "mdi:gauge-full",
+          "161": "mdi:alert-outline",
+          "181": "mdi:alert-octagon-outline"
+        }
+      },
+      "no2": {
+        "range": {
+          "0": "mdi:gauge-empty",
+          "11": "mdi:gauge-low",
+          "26": "mdi:gauge",
+          "61": "mdi:gauge-full",
+          "101": "mdi:alert-outline",
+          "151": "mdi:alert-octagon-outline"
+        }
+      },
+      "so2": {
+        "range": {
+          "0": "mdi:gauge-empty",
+          "21": "mdi:gauge-low",
+          "41": "mdi:gauge",
+          "126": "mdi:gauge-full",
+          "191": "mdi:alert-outline",
+          "276": "mdi:alert-octagon-outline"
+        }
+      },
       "air_quality_index": {
         "default": "mdi:air-filter",
         "state": {

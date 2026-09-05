@@ -147,6 +147,24 @@ The station index and its numeric twin carry:
 
 The sub-index sensors carry `averaging_basis` and `scheme`.
 
+### Icons by level
+
+Not only the index sensors: the **measurement sensors of the five index pollutants**
+(PM2.5, PM10, O₃, NO₂, SO₂) change their icon with the EAQI level of their current value,
+from `mdi:gauge-empty` at *good* to `mdi:alert-octagon-outline` at *extremely poor*. A
+measurement and its sub-index therefore show the same symbol.
+
+Deliberately limited:
+
+- Only the **current values**, not the daily means: the EAQI bands are defined on hourly
+  means, and a previous-day figure does not belong on that scale.
+- Only the five index pollutants. **CO and NO** keep their device class icon – the EAQI
+  has no bands for them, so there is no threshold that could be backed by a source.
+- A **negative** reading (measurement noise near zero) and an unavailable sensor also fall
+  back to the device class icon rather than showing up as *good*.
+
+A per-entity icon set by hand always wins (entity → settings → icon).
+
 > **The index is not a compliance tool.** The EEA states plainly that the air quality
 > index is not a tool for checking compliance with air quality standards and cannot be
 > used for that purpose. For legal limit values, refer to the official publication of the
