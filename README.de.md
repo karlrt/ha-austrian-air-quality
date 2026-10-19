@@ -311,22 +311,33 @@ automation:
 
 ## Installation
 
-### HACS (benutzerdefiniertes Repository)
+### HACS
 
-Die Integration ist (noch) nicht Teil des HACS-Standardkatalogs, das Repository muss daher
-einmalig von Hand hinzugefügt werden. Ein Klick erledigt das und öffnet direkt die
-Downloadseite:
+Die Integration ist Teil des HACS-Standardkatalogs. Ein Klick öffnet sie direkt in HACS:
 
 [![Diese Home-Assistant-Instanz öffnen und das Repository im Home Assistant Community Store anzeigen.][my-badge]][my-hacs]
 
 Oder manuell:
 
-1. HACS öffnen → Integrationen → Menü (⋮) → *Benutzerdefinierte Repositories*
-2. `https://github.com/karlrt/ha-austrian-air-quality` als Kategorie *Integration* hinzufügen
-3. „Luftqualität Österreich" installieren, Home Assistant neu starten
-4. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Luftqualität Österreich*
+1. HACS öffnen und nach „Luftqualität Österreich" suchen
+2. Den Eintrag öffnen, *Herunterladen* wählen, Home Assistant neu starten
+3. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Luftqualität Österreich*
 
 HACS bietet ausschließlich getaggte Releases an, nicht den Stand des Standardbranches.
+
+Ab Home Assistant 2026.11 ist HACS als *Marketplace* fest in Home Assistant eingebaut. Er
+liest denselben Katalog, die Integration ist dort also ebenfalls zu finden.
+
+### Bereits über ein benutzerdefiniertes Repository installiert?
+
+Es ist nichts zu tun. HACS erkennt die bestehende Installation und führt sie mit dem Eintrag
+im Standardkatalog zusammen, sobald es seine Katalogdaten neu geladen hat – das geschieht bei
+jedem Start von Home Assistant und danach alle sechs Stunden. Konfiguration, Entitäten,
+Verlauf und Update-Benachrichtigungen bleiben unverändert; unter *Benutzerdefinierte
+Repositories* taucht der Eintrag danach nicht mehr auf.
+
+Bitte in HACS **nicht** *Entfernen* am Repository selbst wählen – das deinstalliert die
+Integration.
 
 ### Vorabversionen (Alpha/Beta)
 
@@ -571,7 +582,7 @@ und werden auf GitHub als *pre-release* veröffentlicht. Tag und `manifest.json`
 Apache-2.0 – siehe [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
+[hacs-badge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
 [my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=karlrt&repository=ha-austrian-air-quality&category=integration
 [my-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
 [my-blueprint]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fkarlrt%2Fha-austrian-air-quality%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Faustrian_air_quality%2Fschwellenwert_benachrichtigung.yaml

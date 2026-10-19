@@ -299,21 +299,33 @@ automation:
 
 ## Installation
 
-### HACS (Custom Repository)
+### HACS
 
-The integration is not (yet) part of the HACS default store, so the repository has to be
-added once by hand. One click does that and opens the download page directly:
+The integration is part of the HACS default catalog. One click opens it directly in HACS:
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-badge]][my-hacs]
 
 Or manually:
 
-1. Open HACS → Integrations → Menu (⋮) → *Custom repositories*
-2. Add `https://github.com/karlrt/ha-austrian-air-quality` as category *Integration*
-3. Install "Luftqualität Österreich", restart Home Assistant
-4. *Settings → Devices & Services → Create Integration → Luftqualität Österreich*
+1. Open HACS and search for "Luftqualität Österreich"
+2. Open the entry, choose *Download*, restart Home Assistant
+3. *Settings → Devices & Services → Add Integration → Luftqualität Österreich*
 
 HACS only offers tagged releases, not the state of the default branch.
+
+From Home Assistant 2026.11 on, HACS is built into Home Assistant as the *Marketplace*. It
+reads the same catalog, so the integration is listed there as well.
+
+### Already installed through a custom repository?
+
+Nothing to do. HACS recognises the existing installation and merges it with the entry in the
+default catalog as soon as it has refreshed its catalog data – which happens on every Home
+Assistant start and every six hours after that. Configuration, entities, history and update
+notifications stay as they are; afterwards the repository no longer shows up under
+*Custom repositories*.
+
+Please do **not** use *Remove* on the repository itself in HACS – that uninstalls the
+integration.
 
 ### Pre-releases (alpha/beta)
 
@@ -557,7 +569,7 @@ tag additionally carrying a `v`: `v0.6.0a1`.
 Apache-2.0 – see [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
+[hacs-badge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
 [my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=karlrt&repository=ha-austrian-air-quality&category=integration
 [my-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
 [my-blueprint]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fkarlrt%2Fha-austrian-air-quality%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Faustrian_air_quality%2Fthreshold_notification.yaml
